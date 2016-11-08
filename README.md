@@ -41,7 +41,7 @@ Edit config.json as follow:
       "receiverPin": "5",
       "transmitterPin": "4",
       "receiveAction": "",
-      "TransmitAction": "",
+      "transmitAction": "",
       "pimaticIP": "192.168.2.118",
       "pimaticPort": "82",
       "apikey": "x"
