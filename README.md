@@ -50,14 +50,24 @@ Edit config.json as follow:
 }
 '''
 
-Makre sure to edit:
+MUST edit to work:
 
 * mode (can be 'homeduino' for attached to Raspberry Pi or 'node' when standalone)
-* receiverPin
-* transmitterPin
-* pimaticIP
+* receiverPin (can be left nu none for homdeuino mode, will follow pin number in pimatic)
+* transmitterPin (can be left nu none for homdeuino mode, will follow pin number in pimatic)
+* pimaticIP (must use IP, not FQDN)
 * pimaticPort
 * apikey (also, make sure you have the apikey entered in the pimatic config for homeduino plugin)
+* receiveAction
+* transmitAction
+
+receiveAction in 'node' mode:
+* receiveAction = 0 [don't do anything with protocol received by local RF]
+* receiveAction = 1 [send protocol received by local RF to pimatic]
+
+transmitAction in 'node' mode:
+* transmitAction = 0 [don't do anything with protocol received by UDP]
+* transmitAction = 1 [transmit protocol received by UDP to local RF]
 
 
 Currently send/receive is only available on the node (beta, you know).
