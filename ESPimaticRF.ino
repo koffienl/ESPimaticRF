@@ -174,6 +174,10 @@ void setup() {
   {
     server.on("/", handle_wifim_html);
   }
+
+  // Format Flash ROM - dangerous! Remove if you dont't want this option!
+  server.on ( "/format", handleFormat );
+
   server.on("/fupload", handle_fupload_html);
   server.on("/wifi_ajax", handle_wifi_ajax);
   server.on("/list", HTTP_GET, printDirectory);
