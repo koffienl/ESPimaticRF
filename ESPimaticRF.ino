@@ -1,6 +1,8 @@
 String apikey;
 String pimaticIP;
 long int pimaticPort;
+int receiveAction;
+int transmitAction;
 
 #include <SerialCommand.h>
 #include <RFControl.h>
@@ -49,8 +51,7 @@ String sep = "____";
 String Mode;
 String receiverPin;
 String transmitterPin;
-String receiveAction;
-String transmitAction;
+
 
 
 void digital_read_command();
@@ -319,7 +320,7 @@ void loop() {
   server.handleClient();
   Telnet();
 
-  if (Mode == "node")
+  if (Mode == "node" && transmitAction == 1)
   {
     int packetSize = Udp.parsePacket();
     if (packetSize)
@@ -331,15 +332,6 @@ void loop() {
       {
         incomingPacket[len] = 0;
       }
-      //SerialPrint("UDP packet contents: " + String(incomingPacket));
-
-      /*
-            // send back a reply, to the IP address and port we got the packet from
-            Udp.beginPacket(Udp.remoteIP(), Udp.remotePort());
-            Udp.write(replyPacket);
-            Udp.endPacket();
-      */
-      //String bla = String(incomingPacket);
 
       DynamicJsonBuffer BufferSetup;
       JsonObject& rf = BufferSetup.parseObject(incomingPacket);
@@ -372,7 +364,7 @@ void loop() {
     rfcontrol_loop();
   }
 
-  if (RFControl::hasData() && Mode == "node")
+  if (RFControl::hasData() && Mode == "node" && receiveAction == 1)
   {
     rfcontrolNode_loop();
   }
@@ -523,8 +515,8 @@ void CheckParseConfigJson()
       receiverPin = ESPimaticRF["receiverPin"].asString();
       transmitterPin = ESPimaticRF["transmitterPin"].asString();
     }
-    receiveAction = ESPimaticRF["receiveAction"].asString();
-    transmitAction = ESPimaticRF["transmitAction"].asString();
+    receiveAction = ESPimaticRF["receiveAction"];
+    transmitAction = ESPimaticRF["transmitAction"];
     apikey = ESPimaticRF["apikey"].asString();
     pimaticIP = ESPimaticRF["pimaticIP"].asString();
     pimaticPort = ESPimaticRF["pimaticPort"];

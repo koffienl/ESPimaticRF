@@ -11,57 +11,45 @@ bool in_raw_mode = false;
 
 void rfcontrolNode_loop()
 {
-//  if (RFControl::hasData()) {
-    unsigned int *timings;
-    unsigned int timings_size;
-    RFControl::getRaw(&timings, &timings_size);
-    unsigned int buckets[8];
-    unsigned int pulse_length_divider = RFControl::getPulseLengthDivider();
-    RFControl::compressTimings(buckets, timings, timings_size);
+  //  if (RFControl::hasData()) {
+  unsigned int *timings;
+  unsigned int timings_size;
+  RFControl::getRaw(&timings, &timings_size);
+  unsigned int buckets[8];
+  unsigned int pulse_length_divider = RFControl::getPulseLengthDivider();
+  RFControl::compressTimings(buckets, timings, timings_size);
 
-    String bucketsStr = "[";
-    for (unsigned int i = 0; i < 8; i++) {
-      unsigned long bucket = buckets[i] * pulse_length_divider;
-      if (bucket == 0) {
-        break;
-      }
-      if (i != 0) {
-        bucketsStr += ",";
-      }
-      bucketsStr += bucket;
-
+  String bucketsStr = "[";
+  for (unsigned int i = 0; i < 8; i++) {
+    unsigned long bucket = buckets[i] * pulse_length_divider;
+    if (bucket == 0) {
+      break;
     }
-    bucketsStr += "]";
-    String pulsesStr;
-    for (unsigned int i = 0; i < timings_size; i++) {
-      pulsesStr += timings[i];
+    if (i != 0) {
+      bucketsStr += ",";
     }
-    RFControl::continueReceiving();
-    Serial.println("Ik ontvang RF uit de lucht, doorsturen!");
-    String url = "/homeduino/received?apikey=" + String(apikey) + "&buckets=" + bucketsStr + "&pulses=" + pulsesStr;
-    WiFiClient client;
-    if (!client.connect(pimaticIP.c_str(), pimaticPort)) {
-      Serial.println("connection failed");
-      return;
-    }
+    bucketsStr += bucket;
 
-    // This will send the request to the server
-    client.print(String("GET ") + url + " HTTP/1.1\r\n" +
-                 "Host: 192.168.2.118\r\n" +
-                 "Connection: close\r\n\r\n");
-    delay(10);
-    /*
-    // Read all the lines of the reply from server and print them to Serial
-    while (client.available()) {
-      String line = client.readStringUntil('\r');
-      //Serial.print(line);
-    }
-    */
+  }
+  bucketsStr += "]";
+  String pulsesStr;
+  for (unsigned int i = 0; i < timings_size; i++) {
+    pulsesStr += timings[i];
+  }
+  RFControl::continueReceiving();
+  Serial.println("Ik ontvang RF uit de lucht, doorsturen!");
+  String url = "/homeduino/received?apikey=" + String(apikey) + "&buckets=" + bucketsStr + "&pulses=" + pulsesStr;
+  WiFiClient client;
+  if (!client.connect(pimaticIP.c_str(), pimaticPort)) {
+    Serial.println("connection failed");
+    return;
+  }
 
-    //Serial.flush();
-  //}
-  //delay(10);
-
+  // This will send the request to the server
+  client.print(String("GET ") + url + " HTTP/1.1\r\n" +
+               "Host: 192.168.2.118\r\n" +
+               "Connection: close\r\n\r\n");
+  delay(10);
 }
 
 void rfcontrol_loop() {
@@ -78,14 +66,14 @@ void rfcontrol_loop() {
     }
   }
   else {
-    if (RFControl::hasData()) {
+    if (RFControl::hasData() && receiveAction == 1) {
       unsigned int *timings;
       unsigned int timings_size;
       RFControl::getRaw(&timings, &timings_size);
       unsigned int buckets[8];
       unsigned int pulse_length_divider = RFControl::getPulseLengthDivider();
       RFControl::compressTimings(buckets, timings, timings_size);
-      SerialPrint("RF receive ");
+      Serial.print("RF receive ");
       for (unsigned int i = 0; i < 8; i++) {
         unsigned long bucket = buckets[i] * pulse_length_divider;
         SerialPrint(String(bucket));
@@ -202,8 +190,14 @@ void rfcontrol_command_send()
   String tt(ch);
 
 
-  //RFControl::sendByCompressedTimings(transmitter_pin, buckets, arg, repeats);
-  //send_data(tt);
-  send_udp(tt);
+  if (transmitAction >= 2)
+  {
+    RFControl::sendByCompressedTimings(transmitter_pin, buckets, arg, repeats);
+  }
+
+  if (transmitAction == 1 || transmitAction == 3)
+  {
+    send_udp(tt);
+  }
   in_raw_mode = false;
 }
