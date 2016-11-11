@@ -1,3 +1,6 @@
+int LastUDP = 0;
+
+
 String protocolsjson;
 String PrevRcv;
 int RcvTime;
@@ -360,32 +363,45 @@ void loop() {
         incomingPacket[len] = 0;
       }
 
-      DynamicJsonBuffer BufferSetup;
-      JsonObject& rf = BufferSetup.parseObject(incomingPacket);
-
-      if (rf.success())
+      if (millis() - LastUDP >= 700)
       {
-        JsonObject& bckets = rf["buckets"];
+        // Incoming UDP packet older than 700ms
+        Serial.println(incomingPacket);
 
-        // read pulse lengths
-        unsigned long buckets[8];
-        for (unsigned int i = 0; i < 8; i++)
+        DynamicJsonBuffer BufferSetup;
+        JsonObject& rf = BufferSetup.parseObject(incomingPacket);
+
+        if (rf.success())
         {
-          buckets[i] = strtoul(bckets[String(i)], NULL, 10);
+          JsonObject& bckets = rf["buckets"];
+
+          // read pulse lengths
+          unsigned long buckets[8];
+          for (unsigned int i = 0; i < 8; i++)
+          {
+            buckets[i] = strtoul(bckets[String(i)], NULL, 10);
+          }
+
+          int repeats = rf["repeats"];
+          String pulse = rf["pulse"].asString();
+          String protocol = rf["protocol"].asString();
+          String unit = rf["unit"].asString();
+          String id = rf["id"].asString();
+
+          Serial.println("Protocol:" + protocol + " , unit:" + unit + " , id:" + id);
+
+          char pls[pulse.length() + 1];
+          pulse.toCharArray(pls, pulse.length() + 1);
+          RFControl::sendByCompressedTimings(transmitterPin.toInt(), buckets, pls, repeats);
         }
-
-        int repeats = rf["repeats"];
-        String pulse = rf["pulse"].asString();
-        String protocol = rf["protocol"].asString();
-        String unit = rf["unit"].asString();
-        String id = rf["id"].asString();
-
-        Serial.println("Protocol:" + protocol + " , unit:" + unit + " , id:" + id);
-
-        char pls[pulse.length() + 1];
-        pulse.toCharArray(pls, pulse.length() + 1);
-        RFControl::sendByCompressedTimings(transmitterPin.toInt(), buckets, pls, repeats);
       }
+      else
+      {
+        // Incoming UDP is within 700ms before the last one, ignore becasue of UDP repeats
+        //Serial.println("UDP pakket binnen, vorige was binnen 700ms!!");
+      }
+
+      LastUDP = millis();
     }
   }
 
@@ -945,22 +961,20 @@ void handle_updatefwm_html()
 
 void send_udp(String data)
 {
-
   char pls[data.length() + 1];
   data.toCharArray(pls, data.length() + 1);
 
-  char* tt = "test pakket";
-
-  //Udp.beginPacket("192.168.2.198", 4211);
-  //Udp.write(pls);
-  //Udp.endPacket();
-
-
-  //Udp.beginPacket(ipMulti, portMulti);
   Udp.beginPacketMulticast(ipMulti, portMulti, WiFi.localIP());
   Udp.write(pls);
   Udp.endPacket();
+  Serial.println("UDP Packet1 done");
 
+  delay(500);
+
+  Udp.beginPacketMulticast(ipMulti, portMulti, WiFi.localIP());
+  Udp.write(pls);
+  Udp.endPacket();
+  Serial.println("UDP Packet2 done");
 
 }
 
