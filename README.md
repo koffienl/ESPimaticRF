@@ -48,3 +48,6 @@ transmitAction in 'node' mode:
 
 
 Currently send/receive is only available on the node (beta, you know).
+
+
+For more information : https://forum.pimatic.org/topic/2438/announcement-espimaticrf-coming-soon
