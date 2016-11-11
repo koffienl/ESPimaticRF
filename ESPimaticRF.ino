@@ -1,3 +1,6 @@
+String protocolsjson;
+String PrevRcv;
+int RcvTime;
 String apikey;
 String pimaticIP;
 long int pimaticPort;
@@ -187,6 +190,7 @@ void setup() {
   server.on("/delete", handleFileDelete);
   server.on("/api", handle_api);
   server.on("/ping", handle_ping);
+  server.on("/config_ajax", handle_config_ajax);
 
   // Upload firmware:
   server.on("/updatefw2", HTTP_POST, []() {
@@ -312,8 +316,11 @@ void setup() {
     SerialPrint("Receiving op pin " + String(receiverPin));
   }
 
-  SerialPrint("UDP started on port " + String(localUdpPort));
 
+  // read protocols into global String
+  protocolsjson = ReadJson("/protocols.json");
+
+  SerialPrint("UDP started on port " + String(localUdpPort));
   SerialPrint("ESPimatic started in '" + Mode + "' mode");
 
   Serial.print("ready\r\n");
@@ -368,9 +375,12 @@ void loop() {
     rfcontrol_loop();
   }
 
-  if (RFControl::hasData() && Mode == "node" && receiveAction == 1)
+  if (Mode == "node" && receiveAction == 1)
   {
-    rfcontrolNode_loop();
+    if (RFControl::hasData())
+    {
+      rfcontrolNode_loop();
+    }
   }
 }
 
@@ -1039,4 +1049,62 @@ void handle_api()
 void handle_ping()
 {
   server.send ( 200, "text/html", "pong");
+}
+
+void handle_config_ajax()
+{
+  String form = server.arg("form");
+
+  if (form == "system")
+  {
+    String Mode = server.arg("mode");
+    String receiver_pin = server.arg("receiver_pin");
+    String transmitter_pin = server.arg("transmitter_pin");
+    String receive_action = server.arg("receive_action");
+    String transmit_action = server.arg("transmit_action");
+    String pimaticIP = server.arg("pimaticIP");
+    String pimaticPort = server.arg("pimaticPort");
+    String apikey = server.arg("apikey");
+    String ssid = server.arg("ssid");
+    String password = server.arg("password");
+
+    String systmjsn = ReadJson("/config.json");
+    DynamicJsonBuffer BufferWifi;
+    JsonObject& systm = BufferWifi.parseObject(const_cast<char*>(systmjsn.c_str()));
+    if (!systm.containsKey("settings"))
+    {
+      systm.createNestedObject("settings");
+    }
+    JsonObject& settings = systm["settings"];
+    if (!settings.containsKey("wifi"))
+    {
+      settings.createNestedObject("wifi");
+    }
+    JsonObject& wifi = settings["wifi"];
+    wifi["ssid"] = ssid;
+    wifi["password"] = password;
+
+    if (!settings.containsKey("ESPimaticRF"))
+    {
+      settings.createNestedObject("ESPimaticRF");
+    }
+    JsonObject& ESPimaticRF = settings["ESPimaticRF"];
+
+    ESPimaticRF["mode"] = Mode;
+    ESPimaticRF["receiverPin"] = receiver_pin;
+    ESPimaticRF["transmitterPin"] = transmitter_pin;
+    ESPimaticRF["receiveAction"] = receive_action;
+    ESPimaticRF["transmitAction"] = transmit_action;
+    ESPimaticRF["pimaticIP"] = pimaticIP;
+    ESPimaticRF["pimaticPort"] = pimaticPort;
+    ESPimaticRF["apikey"] = apikey;
+
+    server.send ( 200, "text/html", "OK");
+
+    int len = systm.measurePrettyLength() + 1;
+    char ch[len];
+    size_t n = systm.prettyPrintTo(ch, sizeof(ch));
+    String tt = (ch);
+    WriteJson(tt, "/config.json");
+  }
 }

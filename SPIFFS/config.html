@@ -1,0 +1,278 @@
+<!DOCTYPE html>
+<html lang="en">
+   <head>
+      <script src="/js/insert.js"></script>
+      <title>ESPimaticRF - Config</title>
+      <meta charset="utf-8">
+      <meta name="viewport" content="width=device-width, initial-scale=1">
+      <link rel="stylesheet" href="/css/bootstrap-extra.css">
+<script type="text/javascript">
+// Plain JS to show header when no JQuery available
+window.onload = function() {
+	if (!window.jQuery){  
+		document.getElementById("loading").style.display = "none";
+		document.getElementById("header").style.display = "block";
+	}
+
+	// If browser is not Android, convert clickable submenu into hover submenu
+	var ua = navigator.userAgent.toLowerCase();
+	var isAndroid = ua.indexOf("android") > -1;
+	if(!isAndroid){
+		var sheet = document.createElement("style")		
+		sheet.innerHTML = ".dropdown-submenu:hover>.dropdown-menu { display: block; }";
+		document.body.appendChild(sheet);
+	}
+}
+
+// Jquery functions
+$( document ).ready(function() {
+
+	// Make submenu clickable
+	$(".dropdown-submenu>a").unbind("click").click(function(e){
+		$(this).next("ul").toggle();
+		e.stopPropagation();
+		e.preventDefault();
+	});
+		
+	var json;
+	
+	// Allways start with 'RefreshData' to collect data with JQuery
+	RefreshData();
+	
+	function RefreshData(){
+		$.ajax
+		({
+			type: "GET",
+			url: "/config.json",
+			data: "",
+			cache: false,
+			success: function(html)
+			{
+				json = JSON.parse(html);
+				var mode = json["settings"]["ESPimaticRF"]["mode"]
+				$("#mode option[value='" + mode + "']").attr("selected", "true");
+				if (mode == "node")
+				{
+					$("#pin_block").show();
+					FillActionSelect("node");
+				}
+
+				if (mode == "homeduino")
+				{
+					FillActionSelect("homeduino");
+				}
+				
+				$("[name=receive_action]").val(json["settings"]["ESPimaticRF"]["receiveAction"]);
+				$("[name=transmit_action]").val(json["settings"]["ESPimaticRF"]["transmitAction"]);				
+				$("#receiver_pin").val(json["settings"]["ESPimaticRF"]["receiverPin"]);
+				$("#transmitter_pin").val(json["settings"]["ESPimaticRF"]["transmitterPin"]);
+				$("#pimaticIP").val(json["settings"]["ESPimaticRF"]["pimaticIP"]);
+				$("#pimaticPort").val(json["settings"]["ESPimaticRF"]["pimaticPort"]);
+				$("#apikey").val(json["settings"]["ESPimaticRF"]["apikey"]);
+				$("#ssid").val(json["settings"]["wifi"]["ssid"]);
+				$("#password").val(json["settings"]["wifi"]["password"]);
+				
+				
+				$("#header").show();
+				$("#system").show();
+				$("#loading").hide();
+			}
+		});	
+	};
+	
+	function FillActionSelect(mode) {
+		if (mode == "node")
+		{
+			$('#receive_action').empty();
+			$('#receive_action').append('<option disabled selected> -- Select Action --</option>');
+			$('#receive_action').append('<option value="0">Do nothing</option>');
+			$('#receive_action').append('<option value="1">Send to Pimatic</option>');
+			
+			$('#transmit_action').empty();
+			$('#transmit_action').append('<option disabled selected> -- Select Action --</option>');
+			$('#transmit_action').append('<option value="0">Do nothing</option>');
+			$('#transmit_action').append('<option value="1">Transmit with local RF</option>');
+		}
+		
+		if (mode == "homeduino")
+		{
+			$('#receive_action').empty();
+			$('#receive_action').append('<option disabled selected> -- Select Action --</option>');
+			$('#receive_action').append('<option value="0">Do nothing</option>');
+			$('#receive_action').append('<option value="1">Send to Pimatic</option>');
+			
+			$('#transmit_action').empty();
+			$('#transmit_action').append('<option disabled selected> -- Select Action --</option>');
+			$('#transmit_action').append('<option value="0">Do nothing</option>');
+			$('#transmit_action').append('<option value="1">Transmit to all nodes</option>');
+			$('#transmit_action').append('<option value="2">Transmit with local RF</option>');
+			$('#transmit_action').append('<option value="3">Both</option>');
+		}
+
+	
+	
+	};
+
+	$('#mode').on('change', function() {
+		var sel = this.value;
+		if (sel == "homeduino")
+		{
+			$("#pin_block").hide();
+			FillActionSelect("homeduino");
+		}
+		if (sel == "node")
+		{
+			$("#pin_block").show();
+			FillActionSelect("node");
+		}
+	});
+
+	
+	// Function to submit (save) form data to ESP. Depending on the settings the ESP might reboot, then we have to trigger the CheckReboot function
+	$("#system_form").submit(function(event) {
+		event.preventDefault();
+		$("#system_block").hide();
+		$("#system_block_saving").show();
+		var values = $(this).serialize();
+		
+		$.ajax
+		({
+			url: "/config_ajax",
+			type: "post",
+			data: values,
+			success: function(html)
+			{
+				$("#system_block").show();
+				$("#system_block_saving").hide();
+			}
+		});
+
+	});
+	
+	// Function to figure out what exactly is confirmed in the modal-dialog, redirect to corresponding function
+	$("#DoFunction").click(function(){
+		$("#modal-dialog").modal("hide");
+		var linkTitle = $("#DoFunction").attr("title");
+		if (linkTitle == "DoClearRecipeProgress") { DoClearRecipeProgress(); }
+	});
+});	
+    </script>    
+   </head>
+   <body>
+   <div id="menubar"></div>
+	<script type="text/javascript" src="/js/menubar.js"></script>
+	<div id="modal-dialog" class="modal fade">
+		<div class="modal-dialog">
+			<div class="modal-content">
+				<div class="modal-header">
+					<button type="button" class="close" data-dismiss="modal" aria-hidden="true">&times;</button>
+					<h4 class="modal-title1">title</h4>
+				</div>
+				<div class="modal-body">
+					<p id="modal-body-text">question</p>
+					<p class="debug-url"></p>
+				</div>
+				<div class="modal-footer">
+                    <button type="button" class="btn btn-default" data-dismiss="modal">OK</button>
+                </div>
+			</div>
+		</div>
+	</div>
+	<p id="error1"></p><p id="error2"></p><p id="error3"></p><p id="error4"></p>
+      <div class="container">
+	  <div id="loading" class="row"><div class="col-md-4"><div class="page-header"><span class="glyphicon glyphicon-refresh glyphicon-refresh-animate"></span></span> Loading . . .</div></div></div>
+      <div class="row">
+	  
+      <div class="col-md-4" id="system_loading" style="display: none;">
+         <div class="page-header">
+            <h1>Config</h1>
+		</div>
+			<span class="glyphicon glyphicon-refresh glyphicon-refresh-animate"></span> Loading  . . .
+			<div class='clearfix visible-lg'></div>
+		</div>
+	  
+      <div class="col-md-4" id="system" style="display: none;">
+        <div id="header" class="page-header" style="display: none;">
+			<h1>Config</h1>
+		</div>
+		<div id="system_block_saving" style="display: none;">
+		<span class="glyphicon glyphicon-refresh glyphicon-refresh-animate"></span> Saving  . . .
+		</div>
+		<div id="system_block_loading" style="display: none;">
+		<span class="glyphicon glyphicon-refresh glyphicon-refresh-animate"></span> Loading  . . .
+		</div>
+			<div id="system_block">
+            <form id="system_form" action="#" method="POST">
+               <div class="panel panel-default">
+                  <div class="panel-body">
+                     <input type="hidden" name="form" value="system">
+                     <div class="form-group">
+                        <div class="input-group">
+                           <span class="input-group-addon">Mode </span>
+                           <select class="form-control" name="mode" id="mode">
+						   <option disabled selected> -- Select Mode --</option>
+						   <option value="homeduino">homeduino</option>
+						   <option value="node">node</option>
+                           </select>
+
+                        </div>
+						</div>
+						<div id="pin_block" style="display: none;">
+	                    <div class="form-group">
+							<div class="input-group">
+							   <span class="input-group-addon">Receiver pin </span>
+							   <input type="text" id="receiver_pin" name="receiver_pin" value="" class="form-control" aria-describedby="basic-addon1">
+							</div>
+						</div>
+						<div class="form-group">
+							<div class="input-group">
+							   <span class="input-group-addon">Transmitter pin </span>
+							   <input type="text" id="transmitter_pin" name="transmitter_pin" value="" class="form-control" aria-describedby="basic-addon1">
+							</div>
+						</div>
+						</div>
+                     <div class="form-group">
+                        <div class="input-group">
+                           <span class="input-group-addon">Receive Action </span>
+                           <select class="form-control" name="receive_action" id="receive_action">
+                           </select>
+
+                        </div>
+						</div>
+
+                     <div class="form-group">
+                        <div class="input-group">
+                           <span class="input-group-addon">Transmit Action </span>
+                           <select class="form-control" name="transmit_action" id="transmit_action">
+                           </select>
+
+                        </div>
+						</div>						
+
+                     <div class='form-group'>
+                        <div class='input-group'><span class='input-group-addon' id='basic-addon1'>Pimatic address </span><input type='text' id='pimaticIP' name='pimaticIP' value='' class='form-control' aria-describedby='basic-addon1'></div>
+                     </div>
+                     <div class='form-group'>
+                        <div class='input-group'><span class='input-group-addon' id='basic-addon2'>Pimatic Port </span><input type='text' id='pimaticPort' name='pimaticPort' value='' class='form-control' aria-describedby='basic-addon2'></div>
+                     </div>
+					<div class='form-group'>
+                        <div class='input-group'><span class='input-group-addon' id='basic-addon2'>API key </span><input type='text' id='apikey' name='apikey' value='' class='form-control' aria-describedby='basic-addon2'></div>
+                     </div>		
+						
+                     <div class='form-group'>
+                        <div class='input-group'><span class='input-group-addon' id='basic-addon1'>Wifi SSID </span><input type='text' id='ssid' name='ssid' value='' class='form-control' aria-describedby='basic-addon1'></div>
+                     </div>
+                     <div class='form-group'>
+                        <div class='input-group'><span class='input-group-addon' id='basic-addon2'>Wifi Password </span><input type='password' id='password' name='password' value='' class='form-control' aria-describedby='basic-addon2'></div>
+                     </div>
+					 </div>
+                  <div class="panel-footer clearfix">
+                     <div class="pull-right"><button type="submit" class="btn btn-default">Save</button></div>
+                  </div>
+				</div>
+            </form>
+            <div class="clearfix visible-lg"></div>
+			</div>
+			</div>
+   </body>
+</html>

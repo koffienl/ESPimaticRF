@@ -7,13 +7,6 @@ var menu = '      <nav class="navbar navbar-default">' +
 '                     <a class="dropdown-toggle" data-toggle="dropdown" href="#"> Menu<span class="caret"></span></a>' +
 '                     <ul class="dropdown-menu">' +
 '                        <li class="dropdown-submenu">' +
-'                           <a tabindex="-1" href="#">Recipe</a>' +
-'                           <ul class="dropdown-menu">' +
-'                     			<li><a tabindex="-1" href="/recipe.html">Edit recipe<span class="glyphicon glyphicon-pencil pull-right"></span></a></li>' +
-'                     			<li><a tabindex="-1" href="/recipemanager.html">Manage recipes<span class="glyphicon glyphicon-file pull-right"></span></a></li>' +
-'                           </ul>' +
-'                        </li>' +
-'                        <li class="dropdown-submenu">' +
 '                           <a tabindex="-1" href="#">System</a>' +
 '                           <ul class="dropdown-menu">' +
 '							<li><a href="/config.html">Config<span class="glyphicon glyphicon-cog pull-right"></span></a></li>' +
