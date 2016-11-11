@@ -28,14 +28,8 @@ char  replyPacket[] = "ACK";  // a reply string to send back
 IPAddress ipMulti(239, 0, 0, 57);
 unsigned int portMulti = 12345;      // local port to listen on
 
-
-
-#define MAX_SRV_CLIENTS 1
-WiFiServer telnet(23);
-WiFiClient serverClients[MAX_SRV_CLIENTS];
 ESP8266WebServer server(80);
 WiFiClient client;
-
 
 void argument_error();
 
@@ -49,8 +43,6 @@ const char* APssid = "ESPimaticRF";
 const char* APpassword = "espimaticrf";
 String WMode = "";
 int SendDone = 0;
-String SerialStringWelcome = "$$$$$$$$\\  $$$$$$\\  $$$$$$$\\  $$\\                          $$\\     $$\\           $$$$$$$\\  $$$$$$$$\\ \r\n$$  _____|$$  __$$\\ $$  __$$\\ \\__|                         $$ |    \\__|          $$  __$$\\ $$  _____|\r\n$$ |      $$ /  \\__|$$ |  $$ |$$\\ $$$$$$\\$$$$\\   $$$$$$\\ $$$$$$\\   $$\\  $$$$$$$\\ $$ |  $$ |$$ |      \r\n$$$$$\\    \\$$$$$$\\  $$$$$$$  |$$ |$$  _$$  _$$\\  \\____$$\\\\_$$  _|  $$ |$$  _____|$$$$$$$  |$$$$$\\    \r\n$$  __|    \\____$$\\ $$  ____/ $$ |$$ / $$ / $$ | $$$$$$$ | $$ |    $$ |$$ /      $$  __$$< $$  __|   \r\n$$ |      $$\\   $$ |$$ |      $$ |$$ | $$ | $$ |$$  __$$ | $$ |$$\\ $$ |$$ |      $$ |  $$ |$$ |      \r\n$$$$$$$$\\ \\$$$$$$  |$$ |      $$ |$$ | $$ | $$ |\\$$$$$$$ | \\$$$$  |$$ |\\$$$$$$$\\ $$ |  $$ |$$ |      \r\n\\________| \\______/ \\__|      \\__|\\__| \\__| \\__| \\_______|  \\____/ \\__| \\_______|\\__|  \\__|\\__|      \r\n\r\nRemote serial console . . .\r\n\r\n";
-String SerialString;
 File UploadFile;
 String fileName;
 String sep = "____";
@@ -76,7 +68,7 @@ void setup() {
   // Check if SPIFFS is OK
   if (!SPIFFS.begin())
   {
-    SerialPrint("SPIFFS failed, needs formatting");
+    Serial.println("SPIFFS failed, needs formatting");
     handleFormat();
     delay(500);
     ESP.restart();
@@ -86,7 +78,7 @@ void setup() {
     FSInfo fs_info;
     if (!SPIFFS.info(fs_info))
     {
-      SerialPrint("fs_info failed\n");
+      Serial.println("fs_info failed\n");
     }
   }
 
@@ -94,24 +86,24 @@ void setup() {
 
   if (ssidStored == "" || passStored == "")
   {
-    SerialPrint("No wifi configuration found, starting in AP mode");
-    SerialPrint("SSID: ");
-    SerialPrint(APssid);
-    SerialPrint("password: ");
-    SerialPrint(APpassword);
+    Serial.println("No wifi configuration found, starting in AP mode");
+    Serial.println("SSID: ");
+    Serial.println(APssid);
+    Serial.println("password: ");
+    Serial.println(APpassword);
     WiFi.mode(WIFI_AP);
     WiFi.softAP(APssid, APpassword);
-    SerialPrint("Connected to ");
-    SerialPrint(APssid);
-    SerialPrint("IP address: ");
-    SerialPrint(WiFi.softAPIP().toString());
+    Serial.println("Connected to ");
+    Serial.println(APssid);
+    Serial.println("IP address: ");
+    Serial.println(WiFi.softAPIP().toString());
     WMode = "AP";
   }
   else
   {
     int i = 0;
-    SerialPrint("Connecting to :");
-    SerialPrint(ssidStored);
+    Serial.println("Connecting to :");
+    Serial.println(ssidStored);
 
     if (WiFi.status() != WL_CONNECTED)
     {
@@ -123,35 +115,35 @@ void setup() {
     while (WiFi.status() != WL_CONNECTED && i < 31)
     {
       delay(1000);
-      SerialPrint(".");
+      Serial.println(".");
       ++i;
     }
     if (WiFi.status() != WL_CONNECTED && i >= 30)
     {
-      SerialPrint("Couldn't connect to network :( ");
+      Serial.println("Couldn't connect to network :( ");
       WiFi.disconnect();
       delay(1000);
-      SerialPrint("Setting up access point");
-      SerialPrint("SSID: ");
-      SerialPrint(APssid);
-      SerialPrint("password: ");
-      SerialPrint(APpassword);
+      Serial.println("Setting up access point");
+      Serial.println("SSID: ");
+      Serial.println(APssid);
+      Serial.println("password: ");
+      Serial.println(APpassword);
       WiFi.mode(WIFI_AP);
       WiFi.softAP(APssid, APpassword);
-      SerialPrint("Connected to ");
-      SerialPrint(APssid);
+      Serial.println("Connected to ");
+      Serial.println(APssid);
       IPAddress myIP = WiFi.softAPIP();
-      SerialPrint("IP address: ");
-      SerialPrint(WiFi.softAPIP().toString());
+      Serial.println("IP address: ");
+      Serial.println(WiFi.softAPIP().toString());
       WMode = "AP";
     }
     else
     {
-      SerialPrint("");
-      SerialPrint("Connected to ");
-      SerialPrint(ssidStored);
-      SerialPrint("IP address: ");
-      SerialPrint(WiFi.localIP().toString());
+      Serial.println("");
+      Serial.println("Connected to ");
+      Serial.println(ssidStored);
+      Serial.println("IP address: ");
+      Serial.println(WiFi.localIP().toString());
     }
   }
 
@@ -249,7 +241,7 @@ void setup() {
       fileName = upload.filename;
       Serial.setDebugOutput(true);
       //fileName = upload.filename;
-      SerialPrint("Upload Name: " + fileName);
+      Serial.println("Upload Name: " + fileName);
       String path;
       if (fileName.indexOf(".css") >= 0)
       {
@@ -274,12 +266,12 @@ void setup() {
     {
       if (UploadFile)
         UploadFile.write(upload.buf, upload.currentSize);
-      SerialPrint(fileName + " size: " + upload.currentSize);
+      Serial.println(fileName + " size: " + upload.currentSize);
     }
     else if (upload.status == UPLOAD_FILE_END)
     {
-      SerialPrint("Upload Size: ");
-      SerialPrint(String(upload.totalSize));  // need 2 commands to work!
+      Serial.println("Upload Size: ");
+      Serial.println(String(upload.totalSize));  // need 2 commands to work!
       if (UploadFile)
         UploadFile.close();
     }
@@ -296,8 +288,6 @@ void setup() {
 
 
   server.begin();
-  telnet.begin();
-  telnet.setNoDelay(true);
 
   if (Mode == "homeduino")
   {
@@ -314,41 +304,16 @@ void setup() {
   {
     pinMode(receiverPin.toInt(), INPUT);
     RFControl::startReceiving(receiverPin.toInt());
-    SerialPrint("Receiving op pin " + String(receiverPin));
+    Serial.println("Receiving op pin " + String(receiverPin));
   }
-
-  /*
-  if (Mode == "node")
-  {
-    pinMode(receiverPin.toInt(), INPUT);
-    RFControl::startReceiving(receiverPin.toInt());
-    SerialPrint("Receiving op pin " + String(receiverPin));
-  }
-
-  if (Mode == "homeduino" && receiveAction == 1)
-  {
-    pinMode(receiverPin.toInt(), INPUT);
-    RFControl::startReceiving(receiverPin.toInt());
-    SerialPrint("Receiving op pin " + String(receiverPin));
-  }
-  */
-
 
   // read protocols into global String
   protocolsjson = ReadJson("/protocols.json");
-
-  SerialPrint("UDP started on port " + String(localUdpPort));
-  SerialPrint("ESPimatic started in '" + Mode + "' mode");
-
-  Serial.println("receiveAction is: " + String(receiveAction) );
-
-  Serial.print("ready\r\n");
 }
 
 void loop() {
   // Check the webserver for updates
   server.handleClient();
-  Telnet();
 
   if (Mode == "node" && transmitAction == 1)
   {
@@ -626,50 +591,29 @@ void WriteJson(String json, String file)
   }
 }
 
-void SerialPrint(String str)
-{
-  if (SendDone == 0)
-  {
-    SerialString = SerialString + str + "\r\n";
-  }
-  if (SendDone == 1)
-  {
-    SerialString = str + "\r\n";
-    SendDone = 0;
-  }
-  if (Mode == "homeduino")
-  {
-    Serial.print(str);
-  }
-  else
-  {
-    Serial.println(str);
-  }
-}
-
 // An empty ESP8266 Flash ROM must be formatted before using it, actual a problem
 void handleFormat()
 {
   server.send ( 200, "text/html", "OK");
-  SerialPrint("Format SPIFFS");
+  Serial.println("Format SPIFFS");
   if (SPIFFS.format())
   {
     if (!SPIFFS.begin())
     {
-      SerialPrint("Format SPIFFS failed");
+      Serial.println("Format SPIFFS failed");
     }
   }
   else
   {
-    SerialPrint("Format SPIFFS failed");
+    Serial.println("Format SPIFFS failed");
   }
   if (!SPIFFS.begin())
   {
-    SerialPrint("SPIFFS failed, needs formatting");
+    Serial.println("SPIFFS failed, needs formatting");
   }
   else
   {
-    SerialPrint("SPIFFS mounted");
+    Serial.println("SPIFFS mounted");
   }
 }
 
@@ -715,11 +659,11 @@ bool handleFileRead(String path)
   SPIFFS.info(fsinfo);
   int FSTotal = fsinfo.totalBytes;
   int FSUsed = fsinfo.usedBytes;
-  SerialPrint(String(FSTotal));
-  SerialPrint(String(FSUsed));
+  Serial.println(String(FSTotal));
+  Serial.println(String(FSUsed));
   */
 
-  SerialPrint("handleFileRead: " + path);
+  Serial.println("handleFileRead: " + path);
   if (path.endsWith("/")) path += "root.html";
 
   String contentType = getContentType(path);
@@ -791,61 +735,6 @@ String formatBytes(size_t bytes) {
     return String(bytes / 1024.0 / 1024.0) + "MB";
   } else {
     return String(bytes / 1024.0 / 1024.0 / 1024.0) + "GB";
-  }
-}
-void Telnet()
-{
-  uint8_t ClientNum;
-  uint8_t i;
-  //check if there are any new clients
-  if (telnet.hasClient())
-  {
-    for (ClientNum = 0; ClientNum < MAX_SRV_CLIENTS; ClientNum++)
-    {
-      //find free/disconnected spot
-      if (!serverClients[ClientNum] || !serverClients[ClientNum].connected())
-      {
-        if (serverClients[ClientNum]) serverClients[ClientNum].stop();
-        serverClients[ClientNum] = telnet.available();
-        SerialString = SerialStringWelcome + SerialString;
-        continue;
-      }
-    }
-    //no free/disconnected spot so reject
-    WiFiClient serverClient = telnet.available();
-    serverClient.stop();
-  }
-
-  String rcv;
-  char ch;
-
-  //check clients for data
-  for (i = 0; i < MAX_SRV_CLIENTS; i++)
-  {
-    if (serverClients[i] && serverClients[i].connected())
-    {
-      //Serial.println("serverclients connected");
-
-
-      if (SendDone == 0)
-      {
-        //Serial.write(serverClients[i].read());
-        //serverClients[i].write("test");
-
-        int replyLength = SerialString.length() + 1;
-        char tt[replyLength];
-        SerialString.toCharArray(tt, replyLength);
-        serverClients[i].write((uint8_t*)tt, strlen(tt));
-
-        SendDone = 1 ;
-      }
-
-
-      if (serverClients[i].available())
-      {
-        //
-      }
-    }
   }
 }
 
@@ -969,12 +858,14 @@ void send_udp(String data)
   Udp.endPacket();
   Serial.println("UDP Packet1 done");
 
+  /*
   delay(500);
 
   Udp.beginPacketMulticast(ipMulti, portMulti, WiFi.localIP());
   Udp.write(pls);
   Udp.endPacket();
   Serial.println("UDP Packet2 done");
+  */
 
 }
 
@@ -986,7 +877,7 @@ void send_data(String data)
   const char* Portchar = "80";
   if (!client.connect(Hostchar, 80))
   {
-    SerialPrint("connection to node failed");
+    Serial.println("connection to node failed");
     return;
   }
 
@@ -1023,7 +914,7 @@ void handle_api()
     ValidCall = 1;
     if (apiurl == apikey)
     {
-      SerialPrint("Receiving RF data: " + String(value));
+      Serial.println("Receiving RF data: " + String(value));
       server.send ( 200, "text/html", "OK");
 
       DynamicJsonBuffer BufferSetup;
@@ -1050,7 +941,7 @@ void handle_api()
     }
     else
     {
-      SerialPrint("Wrong API key: " + apiurl);
+      Serial.println("Wrong API key: " + apiurl);
       server.send ( 200, "text/html", "ERROR: Invalide API key");
     }
   }
@@ -1058,7 +949,7 @@ void handle_api()
   if (action == "reboot" && value == "true")
   {
     ValidCall = 1;
-    SerialPrint("Reboot on user request");
+    Serial.println("Reboot on user request");
     server.send ( 200, "text/html", "OK");
     delay(500);
     ESP.restart();

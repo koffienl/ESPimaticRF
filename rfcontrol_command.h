@@ -112,8 +112,8 @@ void rfcontrolNode_loop()
 void rfcontrol_loop() {
   if (in_raw_mode) {
     if (RFControl::existNewDuration()) {
-      SerialPrint(String(RFControl::getLastDuration() * RFControl::getPulseLengthDivider()));
-      SerialPrint(", ");
+      Serial.print(String(RFControl::getLastDuration() * RFControl::getPulseLengthDivider()));
+      Serial.print(", ");
       static byte line = 0;
       line++;
       if (line >= 16) {
@@ -133,13 +133,13 @@ void rfcontrol_loop() {
       Serial.print("RF receive ");
       for (unsigned int i = 0; i < 8; i++) {
         unsigned long bucket = buckets[i] * pulse_length_divider;
-        SerialPrint(String(bucket));
+        Serial.print(String(bucket));
         Serial.write(' ');
       }
       for (unsigned int i = 0; i < timings_size; i++) {
         Serial.write('0' + timings[i]);
       }
-      SerialPrint("\r\n");
+      Serial.print("\r\n");
       RFControl::continueReceiving();
     }
   }
@@ -171,7 +171,7 @@ void rfcontrol_command_raw() {
   int interrupt_pin = atoi(arg);
   RFControl::startReceiving(interrupt_pin);
   in_raw_mode = true;
-  SerialPrint("ACK\r\n");
+  Serial.print("ACK\r\n");
 }
 
 void rfcontrol_command_receive() {
@@ -183,7 +183,7 @@ void rfcontrol_command_receive() {
   interrupt_pin = atoi(arg);
   RFControl::startReceiving(interrupt_pin);
   in_raw_mode = false;
-  SerialPrint("ACK\r\n");
+  Serial.print("ACK\r\n");
 }
 
 
