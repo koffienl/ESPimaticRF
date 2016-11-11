@@ -242,7 +242,6 @@ void rfcontrol_command_send()
 
   if (transmitAction >= 2)
   {
-    Serial.println("homeduino moet ik RF zenden");
     RFControl::sendByCompressedTimings(4, buckets, arg, repeats);
   }
 

@@ -856,7 +856,6 @@ void send_udp(String data)
   Udp.beginPacketMulticast(ipMulti, portMulti, WiFi.localIP());
   Udp.write(pls);
   Udp.endPacket();
-  Serial.println("UDP Packet1 done");
 
   /*
   delay(500);
@@ -953,15 +952,6 @@ void handle_api()
     server.send ( 200, "text/html", "OK");
     delay(500);
     ESP.restart();
-  }
-
-  if (action == "GET")
-  {
-    if (value == "log")
-    {
-      ValidCall = 1;
-      server.send ( 200, "text/html", SerialString);
-    }
   }
 
   if (ValidCall == 0)
