@@ -25,11 +25,13 @@ Upload all the files that are in 'SPIFFS' folder
 
 Reboot ESP
 
-Go to http://esp_ip/edit.html and point to config.json
+Go to http://esp_ip , choose config from menu and enter all the options
+
+~~Go to http://esp_ip/edit.html and point to config.json
 
 Edit config.json as follow:
 
-'''
+```
 {
   "settings": {
     "wifi": {
@@ -48,7 +50,8 @@ Edit config.json as follow:
     }
   }
 }
-'''
+```
+~~~
 
 MUST edit to work:
 
