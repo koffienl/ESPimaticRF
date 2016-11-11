@@ -51,9 +51,9 @@ $( document ).ready(function() {
 				json = JSON.parse(html);
 				var mode = json["settings"]["ESPimaticRF"]["mode"]
 				$("#mode option[value='" + mode + "']").attr("selected", "true");
+				
 				if (mode == "node")
 				{
-					$("#pin_block").show();
 					FillActionSelect("node");
 				}
 
@@ -61,6 +61,7 @@ $( document ).ready(function() {
 				{
 					FillActionSelect("homeduino");
 				}
+				
 				
 				$("[name=receive_action]").val(json["settings"]["ESPimaticRF"]["receiveAction"]);
 				$("[name=transmit_action]").val(json["settings"]["ESPimaticRF"]["transmitAction"]);				
@@ -117,12 +118,10 @@ $( document ).ready(function() {
 		var sel = this.value;
 		if (sel == "homeduino")
 		{
-			$("#pin_block").hide();
 			FillActionSelect("homeduino");
 		}
 		if (sel == "node")
 		{
-			$("#pin_block").show();
 			FillActionSelect("node");
 		}
 	});
@@ -217,7 +216,6 @@ $( document ).ready(function() {
 
                         </div>
 						</div>
-						<div id="pin_block" style="display: none;">
 	                    <div class="form-group">
 							<div class="input-group">
 							   <span class="input-group-addon">Receiver pin </span>
@@ -229,7 +227,6 @@ $( document ).ready(function() {
 							   <span class="input-group-addon">Transmitter pin </span>
 							   <input type="text" id="transmitter_pin" name="transmitter_pin" value="" class="form-control" aria-describedby="basic-addon1">
 							</div>
-						</div>
 						</div>
                      <div class="form-group">
                         <div class="input-group">

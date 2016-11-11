@@ -240,7 +240,13 @@ void rfcontrol_command_send()
 
   Serial.print("ACK\r\n");
 
-  /*
+  if (transmitAction >= 2)
+  {
+    Serial.println("homeduino moet ik RF zenden");
+    RFControl::sendByCompressedTimings(4, buckets, arg, repeats);
+  }
+
+
   String ProtoCopy = protocolsjson;
   String pulses = String(arg);
   DynamicJsonBuffer BufferProtocols;
@@ -288,20 +294,12 @@ void rfcontrol_command_send()
       root["id"] = String(bin2dec(id));
     }
   }
-  */
 
 
   int len = root.measureLength() + 1;
   char ch[len];
   size_t n = root.printTo(ch, sizeof(ch));
   String tt(ch);
-
-
-  if (transmitAction >= 2)
-  {
-    //Serial.println("homeduino moet ik RF zenden");
-    RFControl::sendByCompressedTimings(transmitter_pin, buckets, arg, repeats);
-  }
 
   if (transmitAction == 1 || transmitAction == 3)
   {

@@ -303,12 +303,18 @@ void setup() {
   }
   if (Mode == "node")
   {
-    //localUdpPort = 4211;  // local port to listen on
     Serial.println(portMulti);
     Udp.beginMulticast(WiFi.localIP(),  ipMulti, portMulti);
   }
 
+  if (receiveAction >= 1)
+  {
+    pinMode(receiverPin.toInt(), INPUT);
+    RFControl::startReceiving(receiverPin.toInt());
+    SerialPrint("Receiving op pin " + String(receiverPin));
+  }
 
+  /*
   if (Mode == "node")
   {
     pinMode(receiverPin.toInt(), INPUT);
@@ -316,12 +322,22 @@ void setup() {
     SerialPrint("Receiving op pin " + String(receiverPin));
   }
 
+  if (Mode == "homeduino" && receiveAction == 1)
+  {
+    pinMode(receiverPin.toInt(), INPUT);
+    RFControl::startReceiving(receiverPin.toInt());
+    SerialPrint("Receiving op pin " + String(receiverPin));
+  }
+  */
+
 
   // read protocols into global String
   protocolsjson = ReadJson("/protocols.json");
 
   SerialPrint("UDP started on port " + String(localUdpPort));
   SerialPrint("ESPimatic started in '" + Mode + "' mode");
+
+  Serial.println("receiveAction is: " + String(receiveAction) );
 
   Serial.print("ready\r\n");
 }
@@ -360,6 +376,12 @@ void loop() {
 
         int repeats = rf["repeats"];
         String pulse = rf["pulse"].asString();
+        String protocol = rf["protocol"].asString();
+        String unit = rf["unit"].asString();
+        String id = rf["id"].asString();
+
+        Serial.println("Protocol:" + protocol + " , unit:" + unit + " , id:" + id);
+
         char pls[pulse.length() + 1];
         pulse.toCharArray(pls, pulse.length() + 1);
         RFControl::sendByCompressedTimings(transmitterPin.toInt(), buckets, pls, repeats);
@@ -524,11 +546,8 @@ void CheckParseConfigJson()
 
     Mode = ESPimaticRF["mode"].asString();
 
-    if (Mode == "node")
-    {
-      receiverPin = ESPimaticRF["receiverPin"].asString();
-      transmitterPin = ESPimaticRF["transmitterPin"].asString();
-    }
+    receiverPin = ESPimaticRF["receiverPin"].asString();
+    transmitterPin = ESPimaticRF["transmitterPin"].asString();
     receiveAction = ESPimaticRF["receiveAction"];
     transmitAction = ESPimaticRF["transmitAction"];
     apikey = ESPimaticRF["apikey"].asString();
