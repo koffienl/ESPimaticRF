@@ -27,38 +27,12 @@ Reboot ESP
 
 Go to http://esp_ip , choose config from menu and enter all the options
 
-~~Go to http://esp_ip/edit.html and point to config.json
-
-Edit config.json as follow:
-
-```
-{
-  "settings": {
-    "wifi": {
-      "ssid": "your SSID",
-      "password": "your wifi pass"
-    },
-    "ESPimaticRF": {
-      "mode": "node",
-      "receiverPin": "5",
-      "transmitterPin": "4",
-      "receiveAction": "",
-      "transmitAction": "",
-      "pimaticIP": "192.168.2.118",
-      "pimaticPort": "82",
-      "apikey": "x"
-    }
-  }
-}
-```
-~~~
-
 MUST edit to work:
 
 * mode (can be 'homeduino' for attached to Raspberry Pi or 'node' when standalone)
 * receiverPin (can be left nu none for homdeuino mode, will follow pin number in pimatic)
 * transmitterPin (can be left nu none for homdeuino mode, will follow pin number in pimatic)
-* pimaticIP (must use IP, not FQDN)
+* pimaticIP
 * pimaticPort
 * apikey (also, make sure you have the apikey entered in the pimatic config for homeduino plugin)
 * receiveAction
