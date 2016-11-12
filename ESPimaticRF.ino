@@ -1,3 +1,5 @@
+int BWmode;
+String bwlistjson;
 String SerialString;
 String PrevHash = "";
 int UDPrepeat;
@@ -291,11 +293,15 @@ void setup() {
 
   if (Mode == "homeduino")
   {
+    // read protocols into global String
+    protocolsjson = ReadJson("/protocols.json");
     localUdpPort = 4210;  // local port to listen on
     Udp.begin(localUdpPort);
   }
   if (Mode == "node")
   {
+    // read black and whitelist into global String
+    bwlistjson = ReadJson("/bwlist.json");
     Serial.println(portMulti);
     Udp.beginMulticast(WiFi.localIP(),  ipMulti, portMulti);
   }
@@ -307,8 +313,7 @@ void setup() {
     Serial.println("Receiving op pin " + String(receiverPin));
   }
 
-  // read protocols into global String
-  protocolsjson = ReadJson("/protocols.json");
+
 }
 
 void loop() {
@@ -327,50 +332,7 @@ void loop() {
       {
         incomingPacket[len] = 0;
       }
-
-      //Serial.println("stripped json? " + String(incomingPacket).substring(8, packetSize));
-
-      if (String(incomingPacket).substring(0, 8) != PrevHash )
-      {
-        //int plen = incomingPacket.length();
-        String strippedJson = String(incomingPacket).substring(8, packetSize);
-        //Serial.println(incomingPacket);
-        PrevHash = String(incomingPacket).substring(0, 8);
-        DynamicJsonBuffer BufferSetup;
-        JsonObject& rf = BufferSetup.parseObject(strippedJson);
-
-        if (rf.success())
-        {
-          JsonObject& bckets = rf["buckets"];
-
-          // read pulse lengths
-          unsigned long buckets[8];
-          for (unsigned int i = 0; i < 8; i++)
-          {
-            buckets[i] = strtoul(bckets[String(i)], NULL, 10);
-          }
-
-          int repeats = rf["repeats"];
-          String pulse = rf["pulse"].asString();
-          String protocol = rf["protocol"].asString();
-          String unit = rf["unit"].asString();
-          String id = rf["id"].asString();
-
-          Serial.println("Protocol:" + protocol + " , unit:" + unit + " , id:" + id);
-
-          char pls[pulse.length() + 1];
-          pulse.toCharArray(pls, pulse.length() + 1);
-          RFControl::sendByCompressedTimings(transmitterPin.toInt(), buckets, pls, repeats);
-        }
-        else
-        {
-          Serial.println("problem with incoming json?");
-        }
-      }
-      else
-      {
-        Serial.println("duplicate hash");
-      }
+      handle_udp(String(incomingPacket), packetSize);
     }
   }
 
@@ -543,6 +505,7 @@ void CheckParseConfigJson()
     apikey = ESPimaticRF["apikey"].asString();
     pimaticIP = ESPimaticRF["pimaticIP"].asString();
     pimaticPort = ESPimaticRF["pimaticPort"];
+    BWmode = ESPimaticRF["BWmode"];
   }
 
 
@@ -1052,3 +1015,164 @@ void handle_config_ajax()
     WriteJson(tt, "/config.json");
   }
 }
+
+int IsBlacklisted(String protocol, String unit, String id)
+{
+  int blacklisted = 0;
+  String BWCopy = bwlistjson;
+  DynamicJsonBuffer bwbuffer;
+  JsonObject& bw = bwbuffer.parseObject(const_cast<char*>(BWCopy.c_str()));
+
+  JsonObject& blacklist = bw["blacklist"];
+
+  for (JsonObject::iterator it = blacklist.begin(); it != blacklist.end(); ++it)
+  {
+    String temp = it->key;
+    if (temp == protocol)
+    {
+      //Serial.println("Protocol komt voor in blacklist");
+      JsonObject& blacklistedProtocol = blacklist[temp];
+      for (JsonObject::iterator it2 = blacklistedProtocol.begin(); it2 != blacklistedProtocol.end(); ++it2)
+      {
+        String temp2 = it2->key;
+        if (temp2 == id)
+        {
+          //Serial.println("ID komt ook voor in blacklist");
+          JsonObject& blacklistedID = blacklistedProtocol[temp2];
+          for (JsonObject::iterator it3 = blacklistedID.begin(); it3 != blacklistedID.end(); ++it3)
+          {
+            String temp3 = it3->value;
+            if (temp3 == unit)
+            {
+              //Serial.println("Unit komt ook voor in blacklist");
+              blacklisted = 1;
+            }
+          }
+        }
+      }
+    }
+  }
+  return blacklisted;
+}
+
+int IsWhitelisted(String protocol, String unit, String id)
+{
+  int whitelisted = 0;
+  String BWCopy = bwlistjson;
+  DynamicJsonBuffer bwbuffer;
+  JsonObject& bw = bwbuffer.parseObject(const_cast<char*>(BWCopy.c_str()));
+
+  JsonObject& whitelist = bw["whitelist"];
+
+  for (JsonObject::iterator it = whitelist.begin(); it != whitelist.end(); ++it)
+  {
+    String temp = it->key;
+    if (temp == protocol)
+    {
+      //Serial.println("Protocol komt voor in whitelist");
+      JsonObject& whitelistedProtocol = whitelist[temp];
+      for (JsonObject::iterator it2 = whitelistedProtocol.begin(); it2 != whitelistedProtocol.end(); ++it2)
+      {
+        String temp2 = it2->key;
+        if (temp2 == id)
+        {
+          //Serial.println("ID komt ook voor in whitelist");
+          JsonObject& whitelistedID = whitelistedProtocol[temp2];
+          for (JsonObject::iterator it3 = whitelistedID.begin(); it3 != whitelistedID.end(); ++it3)
+          {
+            String temp3 = it3->value;
+            if (temp3 == unit)
+            {
+              //Serial.println("Unit komt ook voor in whitelist");
+              whitelisted = 1;
+            }
+          }
+        }
+      }
+    }
+  }
+  return whitelisted;
+}
+
+void handle_udp(String incomingPacket, int packetSize)
+{
+  if (String(incomingPacket).substring(0, 8) != PrevHash )
+  {
+    //int plen = incomingPacket.length();
+    String strippedJson = String(incomingPacket).substring(8, packetSize);
+    //Serial.println(incomingPacket);
+    PrevHash = String(incomingPacket).substring(0, 8);
+    DynamicJsonBuffer BufferSetup;
+    JsonObject& rf = BufferSetup.parseObject(strippedJson);
+
+    if (rf.success())
+    {
+      JsonObject& bckets = rf["buckets"];
+
+      // read pulse lengths
+      unsigned long buckets[8];
+      for (unsigned int i = 0; i < 8; i++)
+      {
+        buckets[i] = strtoul(bckets[String(i)], NULL, 10);
+      }
+
+      int repeats = rf["repeats"];
+      String pulse = rf["pulse"].asString();
+      String protocol = rf["protocol"].asString();
+      String unit = rf["unit"].asString();
+      String id = rf["id"].asString();
+
+      Serial.println("Protocol:" + protocol + " , unit:" + unit + " , id:" + id);
+
+      if (BWmode == 1)
+      {
+        // BWmode 1 = Allow everything except blacklist
+        int blacklisted = IsBlacklisted(protocol, unit, id);
+        if (blacklisted == 0)
+        {
+          char pls[pulse.length() + 1];
+          pulse.toCharArray(pls, pulse.length() + 1);
+          RFControl::sendByCompressedTimings(transmitterPin.toInt(), buckets, pls, repeats);
+        }
+        else
+        {
+          Serial.println("This protocol/ID/Unit is blacklisted, do nothing");
+        }
+      }
+
+      if (BWmode == 2)
+      {
+        // BWmode 2 = Allow nothing except whitelist
+        int whitelisted = IsWhitelisted(protocol, unit, id);
+        if (whitelisted == 1)
+        {
+          char pls[pulse.length() + 1];
+          pulse.toCharArray(pls, pulse.length() + 1);
+          RFControl::sendByCompressedTimings(transmitterPin.toInt(), buckets, pls, repeats);
+        }
+        else
+        {
+          Serial.println("This protocol/ID/Unit is not in the whitelist, do nothing");
+        }
+      }
+
+      if (BWmode == 0)
+      {
+        // BWmode 0 = Allow everything
+        char pls[pulse.length() + 1];
+        pulse.toCharArray(pls, pulse.length() + 1);
+        RFControl::sendByCompressedTimings(transmitterPin.toInt(), buckets, pls, repeats);
+      }
+
+    }
+    else
+    {
+      Serial.println("problem with incoming json?");
+    }
+  }
+  else
+  {
+    Serial.println("duplicate hash");
+  }
+}
+
