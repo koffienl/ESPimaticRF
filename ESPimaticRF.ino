@@ -1,5 +1,8 @@
-int LastUDP = 0;
-
+String SerialString;
+String PrevHash = "";
+int UDPrepeat;
+String receiverPin;
+String transmitterPin;
 
 String protocolsjson;
 String PrevRcv;
@@ -47,8 +50,7 @@ File UploadFile;
 String fileName;
 String sep = "____";
 String Mode;
-String receiverPin;
-String transmitterPin;
+
 
 
 
@@ -285,8 +287,6 @@ void setup() {
       server.send(404, "text/plain", "FileNotFound");
   });
 
-
-
   server.begin();
 
   if (Mode == "homeduino")
@@ -321,20 +321,23 @@ void loop() {
     if (packetSize)
     {
       // receive incoming UDP packets
-      Serial.println("Received " + String(packetSize) + " bytes from " + String(Udp.remoteIP().toString().c_str()) + " , port " + String(Udp.remotePort()));
+      //Serial.println("Received " + String(packetSize) + " bytes from " + String(Udp.remoteIP().toString().c_str()) + " , port " + String(Udp.remotePort()));
       int len = Udp.read(incomingPacket, 355);
       if (len > 0)
       {
         incomingPacket[len] = 0;
       }
 
-      if (millis() - LastUDP >= 700)
-      {
-        // Incoming UDP packet older than 700ms
-        Serial.println(incomingPacket);
+      //Serial.println("stripped json? " + String(incomingPacket).substring(8, packetSize));
 
+      if (String(incomingPacket).substring(0, 8) != PrevHash )
+      {
+        //int plen = incomingPacket.length();
+        String strippedJson = String(incomingPacket).substring(8, packetSize);
+        //Serial.println(incomingPacket);
+        PrevHash = String(incomingPacket).substring(0, 8);
         DynamicJsonBuffer BufferSetup;
-        JsonObject& rf = BufferSetup.parseObject(incomingPacket);
+        JsonObject& rf = BufferSetup.parseObject(strippedJson);
 
         if (rf.success())
         {
@@ -359,14 +362,15 @@ void loop() {
           pulse.toCharArray(pls, pulse.length() + 1);
           RFControl::sendByCompressedTimings(transmitterPin.toInt(), buckets, pls, repeats);
         }
+        else
+        {
+          Serial.println("problem with incoming json?");
+        }
       }
       else
       {
-        // Incoming UDP is within 700ms before the last one, ignore becasue of UDP repeats
-        //Serial.println("UDP pakket binnen, vorige was binnen 700ms!!");
+        Serial.println("duplicate hash");
       }
-
-      LastUDP = millis();
     }
   }
 
@@ -527,6 +531,11 @@ void CheckParseConfigJson()
 
     Mode = ESPimaticRF["mode"].asString();
 
+    UDPrepeat = ESPimaticRF["UDPrepeat"];
+    if (UDPrepeat == 0)
+    {
+      UDPrepeat = 3;
+    }
     receiverPin = ESPimaticRF["receiverPin"].asString();
     transmitterPin = ESPimaticRF["transmitterPin"].asString();
     receiveAction = ESPimaticRF["receiveAction"];
@@ -850,21 +859,39 @@ void handle_updatefwm_html()
 
 void send_udp(String data)
 {
+  SendDone = 0;
+  SerialString = data;
   char pls[data.length() + 1];
   data.toCharArray(pls, data.length() + 1);
 
-  Udp.beginPacketMulticast(ipMulti, portMulti, WiFi.localIP());
-  Udp.write(pls);
-  Udp.endPacket();
+  RFControl::stopReceiving();
+
+  for (int i = 0; i < UDPrepeat; i++)
+  {
+    Udp.beginPacketMulticast(ipMulti, portMulti, WiFi.localIP());
+    Udp.write(pls);
+    Udp.endPacket();
+    Serial.println("UDP Packet " + String(i) + " done");
+
+    delay(50);
+    //yield();
+
+  }
+  RFControl::continueReceiving();
 
   /*
-  delay(500);
+    Udp.beginPacketMulticast(ipMulti, portMulti, WiFi.localIP());
+    Udp.write(pls);
+    Udp.endPacket();
+    Serial.println("UDP Packet 1 done");
 
-  Udp.beginPacketMulticast(ipMulti, portMulti, WiFi.localIP());
-  Udp.write(pls);
-  Udp.endPacket();
-  Serial.println("UDP Packet2 done");
-  */
+    delay(500);
+
+    Udp.beginPacketMulticast(ipMulti, portMulti, WiFi.localIP());
+    Udp.write(pls);
+    Udp.endPacket();
+    Serial.println("UDP Packet 2 done");
+    */
 
 }
 

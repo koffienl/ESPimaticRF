@@ -242,7 +242,7 @@ void rfcontrol_command_send()
 
   if (transmitAction >= 2)
   {
-    RFControl::sendByCompressedTimings(4, buckets, arg, repeats);
+    RFControl::sendByCompressedTimings(transmitterPin.toInt(), buckets, arg, repeats);
   }
 
 
@@ -295,10 +295,20 @@ void rfcontrol_command_send()
   }
 
 
+  int hash = 10000000;
+  hash = hash + millis();
+
+  //String hash = String(millis());
+
+
+  //root["hash"] = hash;
+
   int len = root.measureLength() + 1;
   char ch[len];
   size_t n = root.printTo(ch, sizeof(ch));
   String tt(ch);
+
+  tt = String(hash).substring(0, 8) + tt;
 
   if (transmitAction == 1 || transmitAction == 3)
   {
