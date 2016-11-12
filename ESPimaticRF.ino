@@ -877,7 +877,8 @@ void send_udp(String data)
     //yield();
 
   }
-  RFControl::continueReceiving();
+  //RFControl::continueReceiving();
+  RFControl::startReceiving(receiverPin.toInt());
 
   /*
     Udp.beginPacketMulticast(ipMulti, portMulti, WiFi.localIP());
