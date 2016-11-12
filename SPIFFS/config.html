@@ -51,6 +51,13 @@ $( document ).ready(function() {
 				json = JSON.parse(html);
 				var mode = json["settings"]["ESPimaticRF"]["mode"]
 				$("#mode option[value='" + mode + "']").attr("selected", "true");
+
+				var udprepeat = json["settings"]["ESPimaticRF"]["UDPrepeat"]
+				if (udprepeat < 1)
+				{
+					udprepeat = 3;
+				}
+				$("#udprepeat option[value='" + udprepeat + "']").attr("selected", "true");
 				
 				if (mode == "node")
 				{
@@ -84,6 +91,10 @@ $( document ).ready(function() {
 	function FillActionSelect(mode) {
 		if (mode == "node")
 		{
+			$("#pimaticIP_div").show();
+			$("#pimaticPort_div").show();
+			$("#udprepeat_div").hide();
+			
 			$('#receive_action').empty();
 			$('#receive_action').append('<option disabled selected> -- Select Action --</option>');
 			$('#receive_action').append('<option value="0">Do nothing</option>');
@@ -97,6 +108,10 @@ $( document ).ready(function() {
 		
 		if (mode == "homeduino")
 		{
+			$("#pimaticIP_div").hide();
+			$("#pimaticPort_div").hide();
+			$("#udprepeat_div").show();
+		
 			$('#receive_action').empty();
 			$('#receive_action').append('<option disabled selected> -- Select Action --</option>');
 			$('#receive_action').append('<option value="0">Do nothing</option>');
@@ -119,10 +134,16 @@ $( document ).ready(function() {
 		if (sel == "homeduino")
 		{
 			FillActionSelect("homeduino");
+			$("#pimaticIP_div").hide();
+			$("#pimaticPort_div").hide();
+			$("#udprepeat_div").show();
 		}
 		if (sel == "node")
 		{
 			FillActionSelect("node");
+			$("#pimaticIP_div").show();
+			$("#pimaticPort_div").show();
+			$("#udprepeat_div").hide();
 		}
 	});
 
@@ -141,18 +162,30 @@ $( document ).ready(function() {
 			data: values,
 			success: function(html)
 			{
+				$(".modal-title1").html("Settings saved");
+				$("#modal-body-text").html("Settings are save to module. You need to restart the module for the settings to take effect. Do you want to reboot?");
+				$("#DoFunction").html("Reboot");
+				$("#DoFunction").attr("title", "DoReboot");
+				$('#modal-dialog').modal('show');
+			
 				$("#system_block").show();
 				$("#system_block_saving").hide();
 			}
 		});
 
 	});
+
+	// Function to send Reboot command to ESP and wait to come back online. Triggered after pushing the red 'Reboot' button from the modal popup
+	function DoReboot(){
+		$.ajax
+		({type: "GET",url: "/api",data: {action:"reboot",value:"true"},cache: false})
+	};
 	
 	// Function to figure out what exactly is confirmed in the modal-dialog, redirect to corresponding function
 	$("#DoFunction").click(function(){
 		$("#modal-dialog").modal("hide");
 		var linkTitle = $("#DoFunction").attr("title");
-		if (linkTitle == "DoClearRecipeProgress") { DoClearRecipeProgress(); }
+		if (linkTitle == "DoReboot") { DoReboot(); }
 	});
 });	
     </script>    
@@ -172,7 +205,8 @@ $( document ).ready(function() {
 					<p class="debug-url"></p>
 				</div>
 				<div class="modal-footer">
-                    <button type="button" class="btn btn-default" data-dismiss="modal">OK</button>
+                    <button type="button" class="btn btn-default" data-dismiss="modal">Cancel</button>
+                    <a class="btn btn-danger btn-ok" id="DoFunction">yes</a>
                 </div>
 			</div>
 		</div>
@@ -246,10 +280,29 @@ $( document ).ready(function() {
                         </div>
 						</div>						
 
-                     <div class='form-group'>
+                     <div class="form-group" id="udprepeat_div">
+                        <div class="input-group">
+                           <span class="input-group-addon">UDP Repeat </span>
+                           <select class="form-control" name="udprepeat" id="udprepeat">
+						   <option value="1">1</option>
+						   <option value="2">2</option>
+						   <option value="3">3</option>
+						   <option value="4">4</option>
+						   <option value="5">5</option>
+						   <option value="6">6</option>
+						   <option value="7">7</option>
+						   <option value="8">8</option>
+						   <option value="9">9</option>
+						   <option value="10">10</option>
+                           </select>
+
+                        </div>
+						</div>	
+						
+                     <div class='form-group' id="pimaticIP_div">
                         <div class='input-group'><span class='input-group-addon' id='basic-addon1'>Pimatic address </span><input type='text' id='pimaticIP' name='pimaticIP' value='' class='form-control' aria-describedby='basic-addon1'></div>
                      </div>
-                     <div class='form-group'>
+                     <div class='form-group' id="pimaticPort_div">
                         <div class='input-group'><span class='input-group-addon' id='basic-addon2'>Pimatic Port </span><input type='text' id='pimaticPort' name='pimaticPort' value='' class='form-control' aria-describedby='basic-addon2'></div>
                      </div>
 					<div class='form-group'>

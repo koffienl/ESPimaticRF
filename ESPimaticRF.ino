@@ -1004,6 +1004,7 @@ void handle_config_ajax()
     String transmitter_pin = server.arg("transmitter_pin");
     String receive_action = server.arg("receive_action");
     String transmit_action = server.arg("transmit_action");
+    String udprepeat = server.arg("udprepeat");
     String pimaticIP = server.arg("pimaticIP");
     String pimaticPort = server.arg("pimaticPort");
     String apikey = server.arg("apikey");
@@ -1037,6 +1038,7 @@ void handle_config_ajax()
     ESPimaticRF["transmitterPin"] = transmitter_pin;
     ESPimaticRF["receiveAction"] = receive_action;
     ESPimaticRF["transmitAction"] = transmit_action;
+    ESPimaticRF["UDPrepeat"] = udprepeat;
     ESPimaticRF["pimaticIP"] = pimaticIP;
     ESPimaticRF["pimaticPort"] = pimaticPort;
     ESPimaticRF["apikey"] = apikey;
