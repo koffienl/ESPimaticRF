@@ -43,53 +43,65 @@ $( document ).ready(function() {
 		$.ajax
 		({
 			type: "GET",
-			url: "/config.json",
+			url: "/bwlist.json",
 			data: "",
 			cache: false,
 			success: function(html)
 			{
 				json = JSON.parse(html);
-				var mode = json["settings"]["ESPimaticRF"]["mode"]
-				$("#mode option[value='" + mode + "']").attr("selected", "true");
 
-				var udprepeat = json["settings"]["ESPimaticRF"]["UDPrepeat"]
-				if (udprepeat < 1)
+				$.each(json, function(key, data)
 				{
-					udprepeat = 3;
-				}
-				$("#udprepeat option[value='" + udprepeat + "']").attr("selected", "true");
-				
-				var bwmode = json["settings"]["ESPimaticRF"]["BWmode"]
-				$("#bwmode option[value='" + bwmode + "']").attr("selected", "true");
-
-				
-				if (mode == "node")
-				{
-					FillActionSelect("node");
-				}
-
-				if (mode == "homeduino")
-				{
-					FillActionSelect("homeduino");
-				}
-				
-				
-				$("[name=receive_action]").val(json["settings"]["ESPimaticRF"]["receiveAction"]);
-				$("[name=transmit_action]").val(json["settings"]["ESPimaticRF"]["transmitAction"]);				
-				$("#receiver_pin").val(json["settings"]["ESPimaticRF"]["receiverPin"]);
-				$("#transmitter_pin").val(json["settings"]["ESPimaticRF"]["transmitterPin"]);
-				$("#pimaticIP").val(json["settings"]["ESPimaticRF"]["pimaticIP"]);
-				$("#pimaticPort").val(json["settings"]["ESPimaticRF"]["pimaticPort"]);
-				$("#apikey").val(json["settings"]["ESPimaticRF"]["apikey"]);
-				$("#ssid").val(json["settings"]["wifi"]["ssid"]);
-				$("#password").val(json["settings"]["wifi"]["password"]);
-				
+					protocol = key;
+					protocolData = data
+					alert(protocol)
+						$.each(protocolData, function(key, data)
+						{
+							id = key
+							idData = data
+						});
+							$.each(idData, function(key, data)
+							{
+								unit = key
+								if (data == "blacklisted")
+								{
+									glyph = "glyphicon glyphicon-ban-circle"
+								}
+								if (data == "whitelisted")
+								{
+									glyph = "glyphicon glyphicon-ok-circle"
+								}
+								$("#bwlist").append(protocol + "," + id + "," + unit + '<span id="relay1"></span><span id="relay2"><span class="' + glyph + ' pull-right"></span></span><br>')
+								
+							});
+					
+				});
 				
 				$("#header").show();
 				$("#system").show();
 				$("#loading").hide();
 			}
 		});	
+		$.ajax
+		({
+			type: "GET",
+			url: "/api",
+			data: {action:"GET",value:"lastreceived"},
+			cache: false,
+			success: function(html)
+			{
+				if (html != "")
+				{
+					json = JSON.parse(html);
+					protocol = json["protocol"];
+					unit = json["unit"];
+					id = json["id"];
+					$("#received").append("Last received device:<br><br>Protocol: " + protocol + "<br>ID: " + id + "<br>Unit: " + unit);
+					$("#bwlist_data").val(html);
+					$("#add_device").show();
+				}
+			}
+		});
 	};
 	
 	function FillActionSelect(mode) {
@@ -98,7 +110,6 @@ $( document ).ready(function() {
 			$("#pimaticIP_div").show();
 			$("#pimaticPort_div").show();
 			$("#udprepeat_div").hide();
-			$("#bwlist").show();
 			
 			$('#receive_action').empty();
 			$('#receive_action').append('<option disabled selected> -- Select Action --</option>');
@@ -116,7 +127,6 @@ $( document ).ready(function() {
 			$("#pimaticIP_div").hide();
 			$("#pimaticPort_div").hide();
 			$("#udprepeat_div").show();
-			$("#bwlist").hide();
 		
 			$('#receive_action').empty();
 			$('#receive_action').append('<option disabled selected> -- Select Action --</option>');
@@ -160,7 +170,6 @@ $( document ).ready(function() {
 		$("#system_block").hide();
 		$("#system_block_saving").show();
 		var values = $(this).serialize();
-		
 		$.ajax
 		({
 			url: "/config_ajax",
@@ -178,7 +187,26 @@ $( document ).ready(function() {
 				$("#system_block_saving").hide();
 			}
 		});
-
+	});
+	
+	$('.btn-default').click(function(event) {
+		event.preventDefault();
+		var buttonpressed = $(this).attr('name')
+		var data = $("#bwlist_data").val();
+		$("#bw_block").hide();
+		$("#bwlist_block_saving").show();
+		$.ajax
+		({
+			type: "GET",
+			url: "/bwlist_ajax",
+			data: {device:data,type:buttonpressed},
+			cache: false,
+			success: function(html)
+			{
+				$("#bw_block").show();
+				$("#bwlist_block_saving").hide();			
+			}
+		})
 	});
 
 	// Function to send Reboot command to ESP and wait to come back online. Triggered after pushing the red 'Reboot' button from the modal popup
@@ -232,7 +260,7 @@ $( document ).ready(function() {
 	  
       <div class="col-md-4" id="system" style="display: none;">
         <div id="header" class="page-header" style="display: none;">
-			<h1>Config</h1>
+			<h1>Currently listed</h1>
 		</div>
 		<div id="system_block_saving" style="display: none;">
 		<span class="glyphicon glyphicon-refresh glyphicon-refresh-animate"></span> Saving  . . .
@@ -241,102 +269,58 @@ $( document ).ready(function() {
 		<span class="glyphicon glyphicon-refresh glyphicon-refresh-animate"></span> Loading  . . .
 		</div>
 			<div id="system_block">
-            <form id="system_form" action="#" method="POST">
-               <div class="panel panel-default">
-                  <div class="panel-body">
-                     <input type="hidden" name="form" value="system">
-                     <div class="form-group">
-                        <div class="input-group">
-                           <span class="input-group-addon">Mode </span>
-                           <select class="form-control" name="mode" id="mode">
-						   <option disabled selected> -- Select Mode --</option>
-						   <option value="homeduino">homeduino</option>
-						   <option value="node">node</option>
-                           </select>
 
-                        </div>
-						</div>
-	                    <div class="form-group">
-							<div class="input-group">
-							   <span class="input-group-addon">Receiver pin </span>
-							   <input type="text" id="receiver_pin" name="receiver_pin" value="" class="form-control" aria-describedby="basic-addon1">
-							</div>
-						</div>
-						<div class="form-group">
-							<div class="input-group">
-							   <span class="input-group-addon">Transmitter pin </span>
-							   <input type="text" id="transmitter_pin" name="transmitter_pin" value="" class="form-control" aria-describedby="basic-addon1">
-							</div>
-						</div>
-                     <div class="form-group">
-                        <div class="input-group">
-                           <span class="input-group-addon">Receive Action </span>
-                           <select class="form-control" name="receive_action" id="receive_action">
-                           </select>
+			
+        <div class="panel panel-default">
+		<div class="panel-body">
+		<p class="text-left">
+			<div id="bwlist">
+			Protocol , ID , Unit
+		</p>
+		</div>
+		</div>
 
-                        </div>
-						</div>
-
-                     <div class="form-group">
-                        <div class="input-group">
-                           <span class="input-group-addon">Transmit Action </span>
-                           <select class="form-control" name="transmit_action" id="transmit_action">
-                           </select>
-
-                        </div>
-						</div>						
-
-                     <div class="form-group" id="udprepeat_div">
-                        <div class="input-group">
-                           <span class="input-group-addon">UDP Repeat </span>
-                           <select class="form-control" name="udprepeat" id="udprepeat">
-						   <option value="1">1</option>
-						   <option value="2">2</option>
-						   <option value="3">3</option>
-						   <option value="4">4</option>
-						   <option value="5">5</option>
-						   <option value="6">6</option>
-						   <option value="7">7</option>
-						   <option value="8">8</option>
-						   <option value="9">9</option>
-						   <option value="10">10</option>
-                           </select>
-
-                        </div>
-						</div>	
-						
-                     <div class='form-group' id="pimaticIP_div">
-                        <div class='input-group'><span class='input-group-addon' id='basic-addon1'>Pimatic address </span><input type='text' id='pimaticIP' name='pimaticIP' value='' class='form-control' aria-describedby='basic-addon1'></div>
-                     </div>
-                     <div class='form-group' id="pimaticPort_div">
-                        <div class='input-group'><span class='input-group-addon' id='basic-addon2'>Pimatic Port </span><input type='text' id='pimaticPort' name='pimaticPort' value='' class='form-control' aria-describedby='basic-addon2'></div>
-                     </div>
-					<div class='form-group'>
-                        <div class='input-group'><span class='input-group-addon' id='basic-addon2'>API key </span><input type='text' id='apikey' name='apikey' value='' class='form-control' aria-describedby='basic-addon2'></div>
-                     </div>		
-					<div class='form-group' id="bwlist">
-                        <div class='input-group'><span class='input-group-addon' id='basic-addon2'>Black/Whitelist mode </span>
-                           <select class="form-control" name="bwmode" id="bwmode">
-						   <option value="0">Allow everything</option>
-						   <option value="1">Allow everything except blacklist</option>
-						   <option value="2">Allow nothing except whitelist</option>
-                           </select>
-						</div>
-                     </div>		
-                     <div class='form-group'>
-                        <div class='input-group'><span class='input-group-addon' id='basic-addon1'>Wifi SSID </span><input type='text' id='ssid' name='ssid' value='' class='form-control' aria-describedby='basic-addon1'></div>
-                     </div>
-                     <div class='form-group'>
-                        <div class='input-group'><span class='input-group-addon' id='basic-addon2'>Wifi Password </span><input type='password' id='password' name='password' value='' class='form-control' aria-describedby='basic-addon2'></div>
-                     </div>
-					 </div>
-                  <div class="panel-footer clearfix">
-                     <div class="pull-right"><button type="submit" class="btn btn-default">Save</button></div>
-                  </div>
+		
+         </div>
 				</div>
-            </form>
             <div class="clearfix visible-lg"></div>
 			</div>
+			
+			
+      <div class="col-md-4" id="add_device" style="display: none;">
+        <div id="header" class="page-header" style="display: snone;">
+			<h1>Add device</h1>
+		</div>
+		<div id="bwlist_block_saving" style="display: none;">
+		<span class="glyphicon glyphicon-refresh glyphicon-refresh-animate"></span> Saving  . . .
+		</div>
+		<div id="bwlist_block_loading" style="display: none;">
+		<span class="glyphicon glyphicon-refresh glyphicon-refresh-animate"></span> Loading  . . .
+		</div>
+			<div id="bw_block">			
+        <div class="panel panel-default">
+		<div class="panel-body">
+		<p class="text-left">
+			<div id="received">
+		</p>
+		</div>
+		</div>
+		<div class='panel-footer clearfix'>
+			<form id='recipe_mash_form' action='#' method='POST'>
+			<input type='hidden' name='bwlist_data' id="bwlist_data" value=''>
+            <div class='pull-right'><button type='submit' class='btn btn-default' name ="blacklisted" id='button_blacklist'>Blacklist</button> 
+			<button type='submit' class='btn btn-default' name="whitelisted" id='button_whitelist'>Whitelist</button></div>
+			</form>
+        </div>
+		</div>
+
+		
+         </divs>
+				</div>
+            <div class="clearfix visible-lg"></div>
+			</div>
+			
+			
 			</div>
    </body>
 </html>

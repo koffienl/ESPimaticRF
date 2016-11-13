@@ -1,3 +1,4 @@
+String LastReceived;
 int BWmode;
 String bwlistjson;
 String SerialString;
@@ -182,6 +183,7 @@ void setup() {
 
   server.on("/fupload", handle_fupload_html);
   server.on("/wifi_ajax", handle_wifi_ajax);
+  server.on("/bwlist_ajax", handle_bwlist_ajax);
   server.on("/list", HTTP_GET, printDirectory);
   server.on("/updatefwm", handle_updatefwm_html);
   server.on("/wifim", handle_wifim_html);
@@ -524,10 +526,22 @@ String ReadJson(String filename)
   File configFile = SPIFFS.open(filename, "r");
   if (!configFile)
   {
+    Serial.println("error?");
     if (!SPIFFS.exists(filename))
     {
       Serial.println("File '" + String(filename) + "' not found, create empty json");
       json_string = "{}";
+      File jsonFile = SPIFFS.open(filename, "w");
+      if (!jsonFile)
+      {
+        Serial.println("Failed to open '" + filename + "' for writing");
+      }
+      else
+      {
+        jsonFile.print(json_string);
+        jsonFile.flush();
+        jsonFile.close();
+      }
       return json_string;
     }
     else
@@ -936,6 +950,14 @@ void handle_api()
     }
   }
 
+  if (action == "GET")
+  {
+    if (value == "lastreceived")
+    {
+      server.send(200, "text/html", LastReceived);
+    }
+  }
+
   if (action == "reboot" && value == "true")
   {
     ValidCall = 1;
@@ -956,6 +978,49 @@ void handle_ping()
   server.send ( 200, "text/html", "pong");
 }
 
+void handle_bwlist_ajax()
+{
+  String jsondata = server.arg("device");
+  String type = server.arg("type");
+
+  Serial.println(jsondata);
+  Serial.println(type);
+
+  DynamicJsonBuffer incomingbuffer;
+  JsonObject& root = incomingbuffer.parseObject(const_cast<char*>(jsondata.c_str()));
+
+  String protocol = root["protocol"].asString();
+  String unit = root["unit"].asString();
+  String id = root["id"].asString();
+
+  String BWCopy = bwlistjson;
+  DynamicJsonBuffer bwbuffer;
+  JsonObject& list = bwbuffer.parseObject(const_cast<char*>(BWCopy.c_str()));
+
+  if (!list.containsKey(protocol))
+  {
+    list.createNestedObject(protocol);
+  }
+  JsonObject& bwprotocol = list[protocol];
+
+  if (!bwprotocol.containsKey(id))
+  {
+    bwprotocol.createNestedObject(id);
+  }
+  JsonObject& bwid = bwprotocol[id];
+
+  bwid[unit] = type;
+
+  int len = list.measurePrettyLength() + 1;
+  char ch[len];
+  size_t n = list.prettyPrintTo(ch, sizeof(ch));
+  String tt = (ch);
+  WriteJson(tt, "/bwlist.json");
+  bwlistjson = tt;  // update the bwlist in memory
+
+  server.send ( 200, "text/html", "OK");
+}
+
 void handle_config_ajax()
 {
   String form = server.arg("form");
@@ -971,6 +1036,7 @@ void handle_config_ajax()
     String pimaticIP = server.arg("pimaticIP");
     String pimaticPort = server.arg("pimaticPort");
     String apikey = server.arg("apikey");
+    String bwmode = server.arg("bwmode");
     String ssid = server.arg("ssid");
     String password = server.arg("password");
 
@@ -1005,6 +1071,7 @@ void handle_config_ajax()
     ESPimaticRF["pimaticIP"] = pimaticIP;
     ESPimaticRF["pimaticPort"] = pimaticPort;
     ESPimaticRF["apikey"] = apikey;
+    ESPimaticRF["BWmode"] = bwmode;
 
     server.send ( 200, "text/html", "OK");
 
@@ -1016,91 +1083,11 @@ void handle_config_ajax()
   }
 }
 
-int IsBlacklisted(String protocol, String unit, String id)
-{
-  int blacklisted = 0;
-  String BWCopy = bwlistjson;
-  DynamicJsonBuffer bwbuffer;
-  JsonObject& bw = bwbuffer.parseObject(const_cast<char*>(BWCopy.c_str()));
-
-  JsonObject& blacklist = bw["blacklist"];
-
-  for (JsonObject::iterator it = blacklist.begin(); it != blacklist.end(); ++it)
-  {
-    String temp = it->key;
-    if (temp == protocol)
-    {
-      //Serial.println("Protocol komt voor in blacklist");
-      JsonObject& blacklistedProtocol = blacklist[temp];
-      for (JsonObject::iterator it2 = blacklistedProtocol.begin(); it2 != blacklistedProtocol.end(); ++it2)
-      {
-        String temp2 = it2->key;
-        if (temp2 == id)
-        {
-          //Serial.println("ID komt ook voor in blacklist");
-          JsonObject& blacklistedID = blacklistedProtocol[temp2];
-          for (JsonObject::iterator it3 = blacklistedID.begin(); it3 != blacklistedID.end(); ++it3)
-          {
-            String temp3 = it3->value;
-            if (temp3 == unit)
-            {
-              //Serial.println("Unit komt ook voor in blacklist");
-              blacklisted = 1;
-            }
-          }
-        }
-      }
-    }
-  }
-  return blacklisted;
-}
-
-int IsWhitelisted(String protocol, String unit, String id)
-{
-  int whitelisted = 0;
-  String BWCopy = bwlistjson;
-  DynamicJsonBuffer bwbuffer;
-  JsonObject& bw = bwbuffer.parseObject(const_cast<char*>(BWCopy.c_str()));
-
-  JsonObject& whitelist = bw["whitelist"];
-
-  for (JsonObject::iterator it = whitelist.begin(); it != whitelist.end(); ++it)
-  {
-    String temp = it->key;
-    if (temp == protocol)
-    {
-      //Serial.println("Protocol komt voor in whitelist");
-      JsonObject& whitelistedProtocol = whitelist[temp];
-      for (JsonObject::iterator it2 = whitelistedProtocol.begin(); it2 != whitelistedProtocol.end(); ++it2)
-      {
-        String temp2 = it2->key;
-        if (temp2 == id)
-        {
-          //Serial.println("ID komt ook voor in whitelist");
-          JsonObject& whitelistedID = whitelistedProtocol[temp2];
-          for (JsonObject::iterator it3 = whitelistedID.begin(); it3 != whitelistedID.end(); ++it3)
-          {
-            String temp3 = it3->value;
-            if (temp3 == unit)
-            {
-              //Serial.println("Unit komt ook voor in whitelist");
-              whitelisted = 1;
-            }
-          }
-        }
-      }
-    }
-  }
-  return whitelisted;
-}
-
 void handle_udp(String incomingPacket, int packetSize)
 {
   if (String(incomingPacket).substring(0, 8) != PrevHash )
   {
-    //int plen = incomingPacket.length();
     String strippedJson = String(incomingPacket).substring(8, packetSize);
-    //Serial.println(incomingPacket);
     PrevHash = String(incomingPacket).substring(0, 8);
     DynamicJsonBuffer BufferSetup;
     JsonObject& rf = BufferSetup.parseObject(strippedJson);
@@ -1127,12 +1114,17 @@ void handle_udp(String incomingPacket, int packetSize)
       if (BWmode == 1)
       {
         // BWmode 1 = Allow everything except blacklist
-        int blacklisted = IsBlacklisted(protocol, unit, id);
-        if (blacklisted == 0)
+        String BWCopy = bwlistjson;
+        DynamicJsonBuffer bwbuffer;
+        JsonObject& bw = bwbuffer.parseObject(const_cast<char*>(BWCopy.c_str()));
+
+        if ( String(bw[protocol][id][unit].asString()) != "blacklisted")
         {
           char pls[pulse.length() + 1];
           pulse.toCharArray(pls, pulse.length() + 1);
           RFControl::sendByCompressedTimings(transmitterPin.toInt(), buckets, pls, repeats);
+          LastReceived = String(incomingPacket).substring(8, packetSize);
+          //LastReceived = incomingPacket;
         }
         else
         {
@@ -1143,8 +1135,11 @@ void handle_udp(String incomingPacket, int packetSize)
       if (BWmode == 2)
       {
         // BWmode 2 = Allow nothing except whitelist
-        int whitelisted = IsWhitelisted(protocol, unit, id);
-        if (whitelisted == 1)
+        String BWCopy = bwlistjson;
+        DynamicJsonBuffer bwbuffer;
+        JsonObject& bw = bwbuffer.parseObject(const_cast<char*>(BWCopy.c_str()));
+
+        if ( String(bw[protocol][id][unit].asString()) == "whitelisted")
         {
           char pls[pulse.length() + 1];
           pulse.toCharArray(pls, pulse.length() + 1);
@@ -1153,6 +1148,8 @@ void handle_udp(String incomingPacket, int packetSize)
         else
         {
           Serial.println("This protocol/ID/Unit is not in the whitelist, do nothing");
+          LastReceived = String(incomingPacket).substring(8, packetSize);
+          //LastReceived = incomingPacket;
         }
       }
 
@@ -1162,8 +1159,9 @@ void handle_udp(String incomingPacket, int packetSize)
         char pls[pulse.length() + 1];
         pulse.toCharArray(pls, pulse.length() + 1);
         RFControl::sendByCompressedTimings(transmitterPin.toInt(), buckets, pls, repeats);
+        LastReceived = String(incomingPacket).substring(8, packetSize);
+        //LastReceived = incomingPacket;
       }
-
     }
     else
     {

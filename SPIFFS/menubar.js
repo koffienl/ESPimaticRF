@@ -1,6 +1,6 @@
 var menu = '      <nav class="navbar navbar-default">' +
 '         <div class="container-fluid">' +
-'            <div class="navbar-header"><a class="navbar-brand" href="/">ESPImaticRF <sup>v0.0.1</sup></a></div>' +
+'            <div class="navbar-header"><a class="navbar-brand" href="/">ESPImaticRF <sup>v0.0.2</sup></a></div>' +
 '            <div>' +
 '               <ul class="nav navbar-nav">' +
 '                  <li class="dropdown">' +
@@ -10,6 +10,7 @@ var menu = '      <nav class="navbar navbar-default">' +
 '                           <a tabindex="-1" href="#">System</a>' +
 '                           <ul class="dropdown-menu">' +
 '							<li><a href="/config.html">Config<span class="glyphicon glyphicon-cog pull-right"></span></a></li>' +
+'							<li><a href="/bwlist.html">Black/Whitelist<span class="glyphicon glyphicon-filter pull-right"></span></a></li>' +
 '							<li><a href="/filemanager.html">Filemanager<span class="glyphicon glyphicon-folder-open pull-right"></span></a></li>' +
 '							<li><a href="/firmware.html">Firmware<span class="glyphicon glyphicon-upload pull-right"></span></a></li>' +
 '                           </ul>' +
