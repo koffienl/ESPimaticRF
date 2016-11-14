@@ -20,7 +20,7 @@
 		"0": "0110",
 		"1": "0101",
 		"idStart": "0",
-		"idEnd": "5"
+		"idEnd": "5",
 		"unitStart": "5",
 		"unitEnd": "10"
 	},
@@ -43,18 +43,6 @@
 		},
 		"0": "0110",
 		"1": "1010",
-		"idStart": "0",
-		"idEnd": "5",
-		"unitStart": "5",
-		"unitEnd": "10"
-	},
-	"150 453 4733 0 0 0 0 0": {
-		"name": "switch6 inverse",
-		"remove": {
-			"02": ""
-		},
-		"0": "0110",
-		"1": "0101",
 		"idStart": "0",
 		"idEnd": "5",
 		"unitStart": "5",

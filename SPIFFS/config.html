@@ -99,6 +99,7 @@ $( document ).ready(function() {
 			$("#pimaticPort_div").show();
 			$("#udprepeat_div").hide();
 			$("#bwlist").show();
+			$("#apikey_div").show();
 			
 			$('#receive_action').empty();
 			$('#receive_action').append('<option disabled selected> -- Select Action --</option>');
@@ -117,6 +118,7 @@ $( document ).ready(function() {
 			$("#pimaticPort_div").hide();
 			$("#udprepeat_div").show();
 			$("#bwlist").hide();
+			$("#apikey_div").hide();
 		
 			$('#receive_action').empty();
 			$('#receive_action').append('<option disabled selected> -- Select Action --</option>');
@@ -311,7 +313,7 @@ $( document ).ready(function() {
                      <div class='form-group' id="pimaticPort_div">
                         <div class='input-group'><span class='input-group-addon' id='basic-addon2'>Pimatic Port </span><input type='text' id='pimaticPort' name='pimaticPort' value='' class='form-control' aria-describedby='basic-addon2'></div>
                      </div>
-					<div class='form-group'>
+					<div class='form-group' id="apikey_div">
                         <div class='input-group'><span class='input-group-addon' id='basic-addon2'>API key </span><input type='text' id='apikey' name='apikey' value='' class='form-control' aria-describedby='basic-addon2'></div>
                      </div>		
 					<div class='form-group' id="bwlist">

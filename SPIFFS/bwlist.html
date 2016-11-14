@@ -35,6 +35,7 @@ $( document ).ready(function() {
 	});
 		
 	var json;
+	var RemoveDevice;
 	
 	// Allways start with 'RefreshData' to collect data with JQuery
 	RefreshData();
@@ -49,18 +50,19 @@ $( document ).ready(function() {
 			success: function(html)
 			{
 				json = JSON.parse(html);
+				$("#bwlist").html("[Protocol] , [ID] , [Unit]<br><br>");
 
 				$.each(json, function(key, data)
 				{
 					protocol = key;
 					protocolData = data
-					alert(protocol)
-						$.each(protocolData, function(key, data)
+					$.each(protocolData, function(key, data)
+					{
+						id = key
+						idData = data
+						$.each(idData, function(key, data)
 						{
-							id = key
-							idData = data
-						});
-							$.each(idData, function(key, data)
+							if (typeof key != 'undefined')
 							{
 								unit = key
 								if (data == "blacklisted")
@@ -71,12 +73,15 @@ $( document ).ready(function() {
 								{
 									glyph = "glyphicon glyphicon-ok-circle"
 								}
-								$("#bwlist").append(protocol + "," + id + "," + unit + '<span id="relay1"></span><span id="relay2"><span class="' + glyph + ' pull-right"></span></span><br>')
-								
+								$("#bwlist").append("<span id='" + protocol + "_" + id + "_" + unit + "'>[" + protocol + "] , [" + id + "] , [" + unit + ']</span><span class="' + glyph + ' pull-right"></span><br>')
+							}
 							});
-					
+					});
 				});
-				
+				$("#bw_block").show();
+				$("#system_block").show();
+				$("#system_block_loading").hide();			
+				$("#bwlist_block_saving").hide();			
 				$("#header").show();
 				$("#system").show();
 				$("#loading").hide();
@@ -92,17 +97,32 @@ $( document ).ready(function() {
 			{
 				if (html != "")
 				{
+					//$("#bwlist_data").html("[Protocol] , [ID] , [Unit]<br><br>");
 					json = JSON.parse(html);
 					protocol = json["protocol"];
 					unit = json["unit"];
 					id = json["id"];
-					$("#received").append("Last received device:<br><br>Protocol: " + protocol + "<br>ID: " + id + "<br>Unit: " + unit);
+					$("#received").html("Last received device:<br><br>Protocol: " + protocol + "<br>ID: " + id + "<br>Unit: " + unit);
 					$("#bwlist_data").val(html);
 					$("#add_device").show();
+					$("#bwlist_block_loading").hide();
 				}
 			}
 		});
 	};
+
+	$('#bwlist').on('click', function (event) {
+	  if (event.target != this && event.target.id != "")
+	  {
+		var splitted = event.target.id.split("_");
+		RemoveDevice = event.target.id;
+		$(".modal-title1").html("Confirm deletion of device");
+		$("#modal-body-text").html("Are you sure you want to delete this device from the list?<br><br>Protocol: " + splitted[0] + "<br>ID: " + splitted[1] + "<br>Unit: " + splitted[2]);
+		$("#DoFunction").html("Delete");
+		$("#DoFunction").attr("title", "DoRemoveDevice");
+		$('#modal-dialog').modal('show');
+	  }
+	});
 	
 	function FillActionSelect(mode) {
 		if (mode == "node")
@@ -194,17 +214,20 @@ $( document ).ready(function() {
 		var buttonpressed = $(this).attr('name')
 		var data = $("#bwlist_data").val();
 		$("#bw_block").hide();
+		$("#system_block").hide();
 		$("#bwlist_block_saving").show();
+		$("#system_block_loading").show();
 		$.ajax
 		({
 			type: "GET",
 			url: "/bwlist_ajax",
-			data: {device:data,type:buttonpressed},
+			data: {action:"AddBWDevice",device:data,type:buttonpressed},
 			cache: false,
 			success: function(html)
 			{
-				$("#bw_block").show();
-				$("#bwlist_block_saving").hide();			
+				$("#bwlist_block_saving").hide();
+				$("#bwlist_block_loading").show();
+				RefreshData();
 			}
 		})
 	});
@@ -219,8 +242,30 @@ $( document ).ready(function() {
 	$("#DoFunction").click(function(){
 		$("#modal-dialog").modal("hide");
 		var linkTitle = $("#DoFunction").attr("title");
-		if (linkTitle == "DoReboot") { DoReboot(); }
+		if (linkTitle == "DoRemoveDevice") { DoRemoveDevice(); }
 	});
+	
+	function DoRemoveDevice(){
+		var splitted = RemoveDevice.split("_");
+		$("#bw_block").hide();
+		$("#system_block").hide();
+		$("#bwlist_block_saving").show();
+		$("#system_block_loading").show();
+		$.ajax
+		({
+			url: "/bwlist_ajax",
+			type: "GET",
+			data: {action:"RemoveBWDevice",protocol:splitted[0],id:splitted[1],unit:splitted[2]},
+			success: function(html)
+			{
+				$("#bwlist_block_saving").hide();
+				$("#bwlist_block_loading").show();
+				RefreshData();
+			}
+		});
+		
+	};	
+
 });	
     </script>    
    </head>
@@ -275,7 +320,6 @@ $( document ).ready(function() {
 		<div class="panel-body">
 		<p class="text-left">
 			<div id="bwlist">
-			Protocol , ID , Unit
 		</p>
 		</div>
 		</div>

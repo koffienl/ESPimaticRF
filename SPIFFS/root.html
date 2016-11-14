@@ -33,8 +33,37 @@ $( document ).ready(function() {
 		e.stopPropagation();
 		e.preventDefault();
 	});
+	
 	// Allways start with 'RefreshData' to collect data with JQuery
-	// When finished, show full page	
+	RefreshData();
+	
+	function RefreshData(){
+		$.ajax
+		({
+			type: "GET",
+			url: "/config.json",
+			data: "",
+			cache: false,
+			success: function(html)
+			{
+				json = JSON.parse(html);
+				if (typeof json["settings"]["ESPimaticRF"]["mode"] != 'undefined')
+				{
+					$("#root").html("ESPimatircRF is in '" + json["settings"]["ESPimaticRF"]["mode"] + "' mode");
+					$("#header").show();
+					$("#system").show();
+					$("#loading").hide();
+				}
+				else
+				{
+					$("#root").html("ESPimatircRF is not properly configured yet");
+					$("#header").show();
+					$("#system").show();
+					$("#loading").hide();
+				}
+			}
+		});	
+	};
 });
     </script>    
    </head>
@@ -59,5 +88,32 @@ $( document ).ready(function() {
 		</div>
 	</div>	  
 	<p id="error1"></p><p id="error2"></p><p id="error3"></p><p id="error4"></p>
+      <div class="container">
+	  <div id="loading" class="row"><div class="col-md-4"><div class="page-header"><span class="glyphicon glyphicon-refresh glyphicon-refresh-animate"></span></span> Loading . . .</div></div></div>
+      <div class="row">
+	  
+      <div class="col-md-4" id="system_loading" style="display: none;">
+         <div class="page-header">
+		</div>
+			<span class="glyphicon glyphicon-refresh glyphicon-refresh-animate"></span> Loading  . . .
+			<div class='clearfix visible-lg'></div>
+		</div>
+	  
+      <div class="col-md-4" id="system" style="display: none;">
+        <div id="header" class="page-header" style="display: none;">
+		</div>
+        <div class="panel panel-default">
+		<div class="panel-body">
+			<div id="root">
+		</div>
+		</div>
+
+		
+         </div>
+            <div class="clearfix visible-lg"></div>
+			</div>
+	
+	
+	
    </body>
 </html>

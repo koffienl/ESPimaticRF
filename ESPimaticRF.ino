@@ -849,28 +849,9 @@ void send_udp(String data)
     Udp.write(pls);
     Udp.endPacket();
     Serial.println("UDP Packet " + String(i) + " done");
-
     delay(50);
-    //yield();
-
   }
-  //RFControl::continueReceiving();
   RFControl::startReceiving(receiverPin.toInt());
-
-  /*
-    Udp.beginPacketMulticast(ipMulti, portMulti, WiFi.localIP());
-    Udp.write(pls);
-    Udp.endPacket();
-    Serial.println("UDP Packet 1 done");
-
-    delay(500);
-
-    Udp.beginPacketMulticast(ipMulti, portMulti, WiFi.localIP());
-    Udp.write(pls);
-    Udp.endPacket();
-    Serial.println("UDP Packet 2 done");
-    */
-
 }
 
 void send_data(String data)
@@ -980,45 +961,80 @@ void handle_ping()
 
 void handle_bwlist_ajax()
 {
-  String jsondata = server.arg("device");
-  String type = server.arg("type");
-
-  Serial.println(jsondata);
-  Serial.println(type);
-
-  DynamicJsonBuffer incomingbuffer;
-  JsonObject& root = incomingbuffer.parseObject(const_cast<char*>(jsondata.c_str()));
-
-  String protocol = root["protocol"].asString();
-  String unit = root["unit"].asString();
-  String id = root["id"].asString();
-
-  String BWCopy = bwlistjson;
-  DynamicJsonBuffer bwbuffer;
-  JsonObject& list = bwbuffer.parseObject(const_cast<char*>(BWCopy.c_str()));
-
-  if (!list.containsKey(protocol))
+  String action = server.arg("action");
+  
+  if (action == "RemoveBWDevice")
   {
-    list.createNestedObject(protocol);
-  }
-  JsonObject& bwprotocol = list[protocol];
+    String protocol = server.arg("protocol");
+    String id = server.arg("id");
+    String unit = server.arg("unit");
 
-  if (!bwprotocol.containsKey(id))
+    server.send(200, "text/html", LastReceived);
+
+    Serial.println("Remove from bwlist : " + protocol + "," + unit + "," + id);
+
+    bwlistjson = ReadJson("/bwlist.json");
+    DynamicJsonBuffer bwbuffer;
+    JsonObject& list = bwbuffer.parseObject(const_cast<char*>(bwlistjson.c_str()));
+
+    if (list.containsKey(protocol))
+    {
+      JsonObject& bwprotocol = list[protocol];
+      if (bwprotocol.containsKey(id))
+      {
+        JsonObject& bwid = bwprotocol[id];
+        bwid.remove(unit);
+
+        int len = list.measurePrettyLength() + 1;
+        char ch[len];
+        size_t n = list.prettyPrintTo(ch, sizeof(ch));
+        String tt = (ch);
+        WriteJson(tt, "/bwlist.json");
+        bwlistjson = tt;  // update the bwlist in memory
+      }
+    }
+  }
+
+  if (action == "AddBWDevice")
   {
-    bwprotocol.createNestedObject(id);
+
+    String jsondata = server.arg("device");
+    String type = server.arg("type");
+
+    DynamicJsonBuffer incomingbuffer;
+    JsonObject& root = incomingbuffer.parseObject(const_cast<char*>(jsondata.c_str()));
+
+    String protocol = root["protocol"].asString();
+    String unit = root["unit"].asString();
+    String id = root["id"].asString();
+
+    bwlistjson = ReadJson("/bwlist.json");
+    DynamicJsonBuffer bwbuffer;
+    JsonObject& list = bwbuffer.parseObject(const_cast<char*>(bwlistjson.c_str()));
+
+    if (!list.containsKey(protocol))
+    {
+      list.createNestedObject(protocol);
+    }
+    JsonObject& bwprotocol = list[protocol];
+
+    if (!bwprotocol.containsKey(id))
+    {
+      bwprotocol.createNestedObject(id);
+    }
+    JsonObject& bwid = bwprotocol[id];
+
+    bwid[unit] = type;
+
+    int len = list.measurePrettyLength() + 1;
+    char ch[len];
+    size_t n = list.prettyPrintTo(ch, sizeof(ch));
+    String tt = (ch);
+    WriteJson(tt, "/bwlist.json");
+    bwlistjson = tt;  // update the bwlist in memory
+
+    server.send ( 200, "text/html", "OK");
   }
-  JsonObject& bwid = bwprotocol[id];
-
-  bwid[unit] = type;
-
-  int len = list.measurePrettyLength() + 1;
-  char ch[len];
-  size_t n = list.prettyPrintTo(ch, sizeof(ch));
-  String tt = (ch);
-  WriteJson(tt, "/bwlist.json");
-  bwlistjson = tt;  // update the bwlist in memory
-
-  server.send ( 200, "text/html", "OK");
 }
 
 void handle_config_ajax()
@@ -1109,7 +1125,7 @@ void handle_udp(String incomingPacket, int packetSize)
       String unit = rf["unit"].asString();
       String id = rf["id"].asString();
 
-      Serial.println("Protocol:" + protocol + " , unit:" + unit + " , id:" + id);
+      Serial.println("Receive message from homeduino, protocol:" + protocol + " , unit:" + unit + " , id:" + id);
 
       if (BWmode == 1)
       {
@@ -1170,7 +1186,7 @@ void handle_udp(String incomingPacket, int packetSize)
   }
   else
   {
-    Serial.println("duplicate hash");
+    Serial.println("Ignore duplicate message");
   }
 }
 

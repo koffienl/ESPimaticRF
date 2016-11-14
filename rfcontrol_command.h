@@ -251,57 +251,52 @@ void rfcontrol_command_send()
   DynamicJsonBuffer BufferProtocols;
   JsonObject& protocols = BufferProtocols.parseObject(const_cast<char*>(ProtoCopy.c_str()));
 
-  for (JsonObject::iterator it = protocols.begin(); it != protocols.end(); ++it)
+  if (protocols.containsKey(str))
   {
-    String temp = it->key;
-    if (temp == str)
+    JsonObject& protoTT = protocols[str];
+    root["protocol"] = protoTT["name"].asString();
+    JsonObject& removeTT = protoTT["remove"];
+    for (JsonObject::iterator it2 = removeTT.begin(); it2 != removeTT.end(); ++it2)
     {
-      //Serial.println("protocol gevonden!");
-      JsonObject& protoTT = protocols[temp];
-      root["protocol"] = protoTT["name"].asString();
-      JsonObject& removeTT = protoTT["remove"];
-      for (JsonObject::iterator it2 = removeTT.begin(); it2 != removeTT.end(); ++it2)
-      {
-        String tt2 = it2->key;
-        pulses.replace(tt2, "");
-        pulses.replace(tt2, "");
-      }
-
-      int PulsesLen = pulses.length();
-      String BinPulse;
-      String Bit = protoTT["0"];
-      int BitLen = Bit.length();
-      for (int i = 0; i <= PulsesLen; i = i + BitLen)
-      {
-        String conv = pulses.substring(i, i + BitLen);
-        if (pulses.substring(i, i + BitLen) == protoTT["1"].asString())
-        {
-          BinPulse += "1";
-        }
-        if (pulses.substring(i, i + BitLen) == protoTT["0"].asString())
-        {
-          BinPulse += "0";
-        }
-      }
-
-      char unit[BinPulse.substring(protoTT["unitStart"], protoTT["unitEnd"]).length() + 1];
-      BinPulse.substring(protoTT["unitStart"], protoTT["unitEnd"]).toCharArray(unit, BinPulse.substring(protoTT["unitStart"], protoTT["unitEnd"]).length() + 1);
-      root["unit"] = String(bin2dec(unit));
-
-      char id[BinPulse.substring(protoTT["idStart"], protoTT["idEnd"]).length() + 1];
-      BinPulse.substring(protoTT["idStart"], protoTT["idEnd"]).toCharArray(id, BinPulse.substring(protoTT["idStart"], protoTT["idEnd"]).length() + 1);
-      root["id"] = String(bin2dec(id));
+      String tt2 = it2->key;
+      pulses.replace(tt2, "");
+      pulses.replace(tt2, "");
     }
+
+    int PulsesLen = pulses.length();
+    String BinPulse;
+    String Bit = protoTT["0"];
+    int BitLen = Bit.length();
+    for (int i = 0; i <= PulsesLen; i = i + BitLen)
+    {
+      String conv = pulses.substring(i, i + BitLen);
+      if (pulses.substring(i, i + BitLen) == protoTT["1"].asString())
+      {
+        BinPulse += "1";
+      }
+      if (pulses.substring(i, i + BitLen) == protoTT["0"].asString())
+      {
+        BinPulse += "0";
+      }
+    }
+
+    char unit[BinPulse.substring(protoTT["unitStart"], protoTT["unitEnd"]).length() + 1];
+    BinPulse.substring(protoTT["unitStart"], protoTT["unitEnd"]).toCharArray(unit, BinPulse.substring(protoTT["unitStart"], protoTT["unitEnd"]).length() + 1);
+    root["unit"] = String(bin2dec(unit));
+
+    char id[BinPulse.substring(protoTT["idStart"], protoTT["idEnd"]).length() + 1];
+    BinPulse.substring(protoTT["idStart"], protoTT["idEnd"]).toCharArray(id, BinPulse.substring(protoTT["idStart"], protoTT["idEnd"]).length() + 1);
+    root["id"] = String(bin2dec(id));
+  }
+  else
+  {
+    Serial.println("protocol niet gevonden?");
+    root["protocol"] = "unknown";
+    root["id"] = "unknown";
+    root["unit"] = "unknown";
   }
 
-
-  int hash = 10000000;
-  hash = hash + millis();
-
-  //String hash = String(millis());
-
-
-  //root["hash"] = hash;
+  int hash = random(10000000, 99999999);
 
   int len = root.measureLength() + 1;
   char ch[len];
@@ -312,7 +307,6 @@ void rfcontrol_command_send()
 
   if (transmitAction == 1 || transmitAction == 3)
   {
-    //Serial.println("homeduino stuurt UDP:");
     Serial.println(tt);
     send_udp(tt);
   }
