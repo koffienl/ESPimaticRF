@@ -5,61 +5,132 @@
 			"02": "",
 			"03": ""
 		},
-		"1": "0100",
 		"0": "0001",
-		"unitStart": "0",
-		"unitEnd": "26",
-		"idStart": "28",
-		"idEnd": "32"
+		"1": "0100",
+		"idStart": "0",
+		"idEnd": "26",
+		"unitStart": "28",
+		"unitEnd": "32"
 	},
 	"306 957 9808 0 0 0 0 0": {
 		"name": "switch2,switch3,switch4",
 		"remove": {
 			"02": ""
 		},
-		"1": "0101",
 		"0": "0110",
-		"unitStart": "5",
-		"unitEnd": "10",
+		"1": "0101",
 		"idStart": "0",
 		"idEnd": "5"
+		"unitStart": "5",
+		"unitEnd": "10"
 	},
 	"295 886 9626 0 0 0 0 0": {
 		"name": "switch5",
 		"remove": {
 			"02": ""
 		},
-		"1": "01",
 		"0": "10",
-		"unitStart": "20",
-		"unitEnd": "23",
+		"1": "01",
 		"idStart": "0",
-		"idEnd": "20"
+		"idEnd": "20",
+		"unitStart": "20",
+		"unitEnd": "23"
 	},
 	"150 453 4733 0 0 0 0 0": {
 		"name": "switch6",
 		"remove": {
 			"02": ""
 		},
-		"1": "0101",
-		"1": "1010",
 		"0": "0110",
-		"unitStart": "0",
-		"unitEnd": "5",
-		"idStart": "5",
-		"idEnd": "10"
+		"1": "1010",
+		"idStart": "0",
+		"idEnd": "5",
+		"unitStart": "5",
+		"unitEnd": "10"
+	},
+	"150 453 4733 0 0 0 0 0": {
+		"name": "switch6 inverse",
+		"remove": {
+			"02": ""
+		},
+		"0": "0110",
+		"1": "0101",
+		"idStart": "0",
+		"idEnd": "5",
+		"unitStart": "5",
+		"unitEnd": "10"
+	},
+	"307 944 9712 0 0 0 0 0": {
+		"name": "switch7",
+		"remove": {
+			"02": ""
+		},
+		"0": "0110",
+		"1": "0101",
+		"idStart": "1",
+		"idEnd": "4",
+		"unitStart": "4",
+		"unitEnd": "7"
+	},
+	"189 547 5720 0 0 0 0 0": {
+		"name": "switch8",
+		"remove": {
+			"02": ""
+		},
+		"0": "0110",
+		"1": "0101",
+		"2": "1010",
+		"idStart": "0",
+		"idEnd": "5",
+		"unitStart": "5",
+		"unitEnd": "10"
+	},
+	"300 600 23000 0 0 0 0 0": {
+		"name": "switch9",
+		"remove": {
+			"12": ""
+		},
+		"0": "10",
+		"1": "01",
+		"idStart": "0",
+		"idEnd": "12",
+		"unitStart": "12",
+		"unitEnd": "20"
+	},
+	"271 1254 10092 0 0 0 0 0": {
+		"name": "switch10",
+		"remove": {
+			"02": ""
+		},
+		"0": "00",
+		"1": "01",
+		"idStart": "11",
+		"idEnd": "43",
+		"unitStart": "51",
+		"unitEnd": "57"
 	},
 	"260 1300 2700 10400 0 0 0 0": {
-		"name": "dimmer",
+		"name": "dimmer1",
 		"remove": {
 			"02": "",
 			"03": ""
 		},
-		"1": "0100",
 		"0": "0001",
-		"unitStart": "0",
-		"unitEnd": "26",
-		"idStart": "28",
-		"idEnd": "32"
+		"1": "0100",
+		"idStart": "0",
+		"idEnd": "26",
+		"unitStart": "28",
+		"unitEnd": "32"
+	},
+	"204 328 1348 10320 0 0 0 0": {
+		"name": "dimmer2",
+		"remove": {
+			"02": "",
+			"03": ""
+		},
+		"0": "0001",
+		"1": "0100",
+		"idStart": "15",
+		"idEnd": "22"
 	}
 }
