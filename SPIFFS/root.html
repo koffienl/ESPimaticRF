@@ -38,6 +38,7 @@ $( document ).ready(function() {
 	RefreshData();
 	
 	function RefreshData(){
+	/*
 		$.ajax
 		({
 			type: "GET",
@@ -50,6 +51,7 @@ $( document ).ready(function() {
 				if (typeof json["settings"]["ESPimaticRF"]["mode"] != 'undefined')
 				{
 					$("#root").html("ESPimatircRF is in '" + json["settings"]["ESPimaticRF"]["mode"] + "' mode");
+					$("#mode").html(json["settings"]["ESPimaticRF"]["mode"]);
 					$("#header").show();
 					$("#system").show();
 					$("#loading").hide();
@@ -62,7 +64,63 @@ $( document ).ready(function() {
 					$("#loading").hide();
 				}
 			}
-		});	
+		});
+		*/
+		$.ajax
+		({
+			type: "GET",
+			url: "/root_ajax",
+			data: "",
+			cache: false,
+			success: function(html)
+			{
+			splitted = html.split("____");
+			$("#mode").html(splitted[5]);
+			$("#uptime").html(splitted[1]);
+			$("#devicename").html(splitted[4]);			
+		
+			var FlashInUse = splitted[3];
+			var FlashTotal = splitted[2];
+			var FlashBar = FlashInUse + " / " + FlashTotal + "<br>";
+			
+			VolleBlokjes = Math.round((FlashInUse / (FlashTotal / 16 ) ));
+			i = 1;
+			while (i <= VolleBlokjes) {
+				FlashBar = FlashBar + "█";
+				i++;
+			}
+			
+			while (i <= 16) {
+				FlashBar = FlashBar + "░";
+				i++;
+			}
+			
+			$("#flash").html(FlashBar);
+
+		
+			var MemInuse = 32000 - splitted[0];
+			var MemFree = splitted[0];
+			var bar = MemInuse + " / 32000<br>";
+			
+			
+			VolleBlokjes = Math.round((MemInuse / 2000));
+			i = 1;
+			while (i <= VolleBlokjes) {
+				bar = bar + "█";
+				i++;
+			}
+			
+			while (i <= 16) {
+				bar = bar + "░";
+				i++;
+			}
+			
+			$("#memory").html(bar);
+			$("#header").show();
+			$("#system").show();
+			$("#loading").hide();			
+			}
+		});
 	};
 });
     </script>    
@@ -98,21 +156,26 @@ $( document ).ready(function() {
 			<span class="glyphicon glyphicon-refresh glyphicon-refresh-animate"></span> Loading  . . .
 			<div class='clearfix visible-lg'></div>
 		</div>
-	  
-      <div class="col-md-4" id="system" style="display: none;">
-        <div id="header" class="page-header" style="display: none;">
-		</div>
-        <div class="panel panel-default">
-		<div class="panel-body">
-			<div id="root">
-		</div>
-		</div>
-
-		
+      <div class="col-md-4">
+         <div class="page-header">
+            <h1>System information</h1>
          </div>
-            <div class="clearfix visible-lg"></div>
-			</div>
-	
+         <div class="panel panel-default">
+            <div class="panel-body"><span class="glyphicon glyphicon-wrench"></span> Mode<span class="pull-right"><span id="mode"></span></span></div>
+         </div>
+         <div class="panel panel-default">
+            <div class="panel-body"><span class="glyphicon glyphicon-tag"></span> Device name<span class="pull-right"><span id="devicename"></span></span></div>
+         </div>
+         <div class="panel panel-default">
+            <div class="panel-body"><span class="glyphicon glyphicon-time"></span> Uptime<span class="pull-right"><span id="uptime"></span></span></div>
+         </div>
+         <div class="panel panel-default">
+            <div class="panel-body"><span class="glyphicon glyphicon-hdd"></span> SPIFSS usage<span class="pull-right"><span id="flash"></span></span></div>
+         </div>
+         <div class="panel panel-default">
+            <div class="panel-body"><span class="glyphicon glyphicon-stats"></span> Memory usage<span class="pull-right"><span id="memory"></span></span></div>
+         </div>
+	</div>	
 	
 	
    </body>

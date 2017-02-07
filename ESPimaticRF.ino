@@ -1,21 +1,32 @@
-String LastReceived;
-int BWmode;
-String bwlistjson;
-String SerialString;
-String PrevHash = "";
-int UDPrepeat;
-String receiverPin;
-String transmitterPin;
+// Global variables
+String receiverPin;                                         // Holds the receiver GPIO
+String transmitterPin;                                      // Holds the transmitter GPIO
+int receiveAction;                                          // What to do on receive command
+int transmitAction;                                         // What to do on transmit command
+String ssidStored;                                          // Holds the SSID
+String passStored;                                          // Holds the wifi password
+const char* APssid = "ESPimaticRF";                         // Holds the SSID for AP mode
+const char* APpassword = "espimaticrf";                     // Holds the AP wifi password
+String WMode = "";                                          // Holds the wifi mode at boot
+String sep = "____";                                        // Sepeator for sending data to frontends
+String Mode;                                                // Holds the ESPimaticRF mode (homeduino or node)
+String DeviceName;                                          // Holds the ESPimaticRF device name
+long mqtt_checkInterval = 60000;                            // 1 minute timeout for MQTT connection check
+long mqtt_lastInterval  = 0;
+int mqtt_connected;
+String esp_hostname;
+char mqtt_hostname[1];
+//const char* mqtt_server; // MQTT server
+String mqtt_server;
+//const char* mqtt_server_org = "192.168.2.121"; // MQTT server
+unsigned int mqtt_server_port ; // without the " " !!
+//unsigned int mqtt_server_port_org = 1883;
+const char* clientName = "node"; // Has to be unique on the network
+const char* outTopic = "/pimaticrf"; // Topic for publishing messages
+String connectivity;
 
-String protocolsjson;
-String PrevRcv;
-int RcvTime;
-String apikey;
-String pimaticIP;
-long int pimaticPort;
-int receiveAction;
-int transmitAction;
 
+// External includes
 #include <SerialCommand.h>
 #include <RFControl.h>
 #include <ESP8266WiFi.h>
@@ -24,47 +35,19 @@ int transmitAction;
 #include <FS.h>
 #include <ArduinoJson.h>
 #include <WiFiUdp.h>
+#include <PubSubClient.h>                                   // IMPORTANT: make sure to edit PubSubClient.h and set MQTT_MAX_PACKET_SIZE 512
 
-WiFiUDP Udp;
-unsigned int localUdpPort;  // local port to listen on
-char incomingPacket[355];  // buffer for incoming packets
-char  replyPacket[] = "ACK";  // a reply string to send back
-
-// Multicast declarations
-IPAddress ipMulti(239, 0, 0, 57);
-unsigned int portMulti = 12345;      // local port to listen on
-
-ESP8266WebServer server(80);
-WiFiClient client;
-
-void argument_error();
-
-SerialCommand sCmd;
-
-#include "rfcontrol_command.h"
-
-String ssidStored;
-String passStored;
-const char* APssid = "ESPimaticRF";
-const char* APpassword = "espimaticrf";
-String WMode = "";
-int SendDone = 0;
-File UploadFile;
-String fileName;
-String sep = "____";
-String Mode;
+SerialCommand sCmd;                                         // Setup serial commands
+ESP8266WebServer server(80);                                // Setup webserver on port 80
+WiFiClient ESPclient;                                       // start wifi client
+File UploadFile;                                            // File for SPIFFS
+String fileName;                                            // Setup MQTT client
+PubSubClient client(ESPclient);
 
 
-
-
-void digital_read_command();
-void digital_write_command();
-void analog_read_command();
-void analog_write_command();
-void reset_command();
-void pin_mode_command();
-void ping_command();
-void unrecognized(const char *command);
+// Local includes
+#include "ESPimaticRF_homeduino.h"
+#include "ESPimaticRF_node.h"
 
 
 void setup() {
@@ -89,6 +72,11 @@ void setup() {
 
   CheckParseConfigJson();
 
+  if (Mode != "homeduino")
+  {
+    Serial.println("");
+  }
+
   if (ssidStored == "" || passStored == "")
   {
     Serial.println("No wifi configuration found, starting in AP mode");
@@ -107,20 +95,21 @@ void setup() {
   else
   {
     int i = 0;
-    Serial.println("Connecting to :");
+    Serial.print("Connecting to: ");
     Serial.println(ssidStored);
 
     if (WiFi.status() != WL_CONNECTED)
     {
+      WiFi.disconnect();
       WiFi.mode(WIFI_STA);
       WiFi.begin(ssidStored.c_str(), passStored.c_str());
     }
 
 
-    while (WiFi.status() != WL_CONNECTED && i < 31)
+    while (WiFi.status() != WL_CONNECTED && i < 31 && Mode != "homeduino")
     {
       delay(1000);
-      Serial.println(".");
+      Serial.print(".");
       ++i;
     }
     if (WiFi.status() != WL_CONNECTED && i >= 30)
@@ -144,27 +133,25 @@ void setup() {
     }
     else
     {
-      Serial.println("");
-      Serial.println("Connected to ");
+      delay(500);
+      //Serial.println("");
+      Serial.print("Connected to: ");
       Serial.println(ssidStored);
-      Serial.println("IP address: ");
-      Serial.println(WiFi.localIP().toString());
+      //Serial.print("IP address: ");
+      //Serial.println(WiFi.localIP().toString());
     }
   }
 
-  if (Mode == "homeduino")
+
+  int i = 0;
+  Serial.println("Waiting for local IP");
+  while (WiFi.localIP().toString() == "0.0.0.0" && i < 15 && Mode == "homeduino")
   {
-    // Setup callbacks for SerialCommand commands
-    sCmd.addCommand("DR", digital_read_command);
-    sCmd.addCommand("DW", digital_write_command);
-    sCmd.addCommand("AR", analog_read_command);
-    sCmd.addCommand("AW", analog_write_command);
-    sCmd.addCommand("PM", pin_mode_command);
-    sCmd.addCommand("RF", rfcontrol_command);
-    sCmd.addCommand("PING", ping_command);
-    sCmd.addCommand("RESET", reset_command);
-    sCmd.setDefaultHandler(unrecognized);
+    delay(1000);
+    Serial.print(".");
+    ++i;
   }
+  Serial.println(WiFi.localIP().toString());
 
   // If no root page && AP mode, set root to simple upload page
   if ( !SPIFFS.exists("/root.html") && !SPIFFS.exists("/root.html.gz") && WMode != "AP")
@@ -177,10 +164,7 @@ void setup() {
   {
     server.on("/", handle_wifim_html);
   }
-
-  // Format Flash ROM - dangerous! Remove if you dont't want this option!
-  server.on ( "/format", handleFormat );
-
+  server.on ( "/format", handleFormat );                      // Format Flash ROM - dangerous! Remove if you dont't want this option!
   server.on("/fupload", handle_fupload_html);
   server.on("/wifi_ajax", handle_wifi_ajax);
   server.on("/bwlist_ajax", handle_bwlist_ajax);
@@ -192,97 +176,13 @@ void setup() {
   server.on("/api", handle_api);
   server.on("/ping", handle_ping);
   server.on("/config_ajax", handle_config_ajax);
-
-  // Upload firmware:
+  server.on("/root_ajax", handle_root_ajax);
   server.on("/updatefw2", HTTP_POST, []() {
-    server.sendHeader("Connection", "close");
-    server.sendHeader("Access-Control-Allow-Origin", "*");
-    server.send(200, "text/plain", (Update.hasError()) ? "FAIL" : "OK");
-    ESP.restart();
-  }, []() {
-    HTTPUpload& upload = server.upload();
-    if (upload.status == UPLOAD_FILE_START)
-    {
-      fileName = upload.filename;
-      Serial.setDebugOutput(true);
-      Serial.printf("Update: %s\n", upload.filename.c_str());
-      uint32_t maxSketchSpace = (ESP.getFreeSketchSpace() - 0x1000) & 0xFFFFF000;
-      if (!Update.begin(maxSketchSpace)) { //start with max available size
-        Update.printError(Serial);
-      }
-    }
-    else if (upload.status == UPLOAD_FILE_WRITE)
-    {
-      if (Update.write(upload.buf, upload.currentSize) != upload.currentSize)
-      {
-        Update.printError(Serial);
-      }
-    }
-    else if (upload.status == UPLOAD_FILE_END)
-    {
-      if (Update.end(true)) //true to set the size to the current progress
-      {
-        Serial.printf("Update Success: %u\nRebooting...\n", upload.totalSize);
-      }
-      else
-      {
-        Update.printError(Serial);
-      }
-      Serial.setDebugOutput(false);
-
-    }
-    yield();
-  });
-
-  // upload file to SPIFFS
+    returnOKReboot();
+  }, handle_fwupload);
   server.on("/fupload2", HTTP_POST, []() {
-    server.sendHeader("Connection", "close");
-    server.sendHeader("Access-Control-Allow-Origin", "*");
-    server.send(200, "text/plain", (Update.hasError()) ? "FAIL" : "OK");
-  }, []() {
-    HTTPUpload& upload = server.upload();
-    if (upload.status == UPLOAD_FILE_START)
-    {
-      noInterrupts();
-      fileName = upload.filename;
-      Serial.setDebugOutput(true);
-      //fileName = upload.filename;
-      Serial.println("Upload Name: " + fileName);
-      String path;
-      if (fileName.indexOf(".css") >= 0)
-      {
-        path = "/css/" + fileName;
-      }
-      else if (fileName.indexOf(".js") >= 0 && !fileName.endsWith(".json"))
-      {
-        path = "/js/" + fileName;
-      }
-      else if (fileName.indexOf(".otf") >= 0 || fileName.indexOf(".eot") >= 0 || fileName.indexOf(".svg") >= 0 || fileName.indexOf(".ttf") >= 0 || fileName.indexOf(".woff") >= 0 || fileName.indexOf(".woff2") >= 0)
-      {
-        path = "/fonts/" + fileName;
-      }
-      else
-      {
-        path = "/" + fileName;
-      }
-      UploadFile = SPIFFS.open(path, "w");
-      // already existing file will be overwritten!
-    }
-    else if (upload.status == UPLOAD_FILE_WRITE)
-    {
-      if (UploadFile)
-        UploadFile.write(upload.buf, upload.currentSize);
-      Serial.println(fileName + " size: " + upload.currentSize);
-    }
-    else if (upload.status == UPLOAD_FILE_END)
-    {
-      Serial.println("Upload Size: ");
-      Serial.println(String(upload.totalSize));  // need 2 commands to work!
-      if (UploadFile)
-        UploadFile.close();
-    }
-    yield();
-  });
+    returnOK();
+  }, handle_fileupload);
 
   //called when the url is not defined here
   //use it to load content from SPIFFS
@@ -295,57 +195,98 @@ void setup() {
 
   if (Mode == "homeduino")
   {
+    //esp_hostname = "[homeduino]" + String(WiFi.hostname());
+
     // read protocols into global String
     protocolsjson = ReadJson("/protocols.json");
-    localUdpPort = 4210;  // local port to listen on
-    Udp.begin(localUdpPort);
+    //localUdpPort = 4210;  // local port to listen on
+    //Udp.begin(localUdpPort);
+
+    // Setup callbacks for SerialCommand commands
+    sCmd.addCommand("DR", digital_read_command);
+    sCmd.addCommand("DW", digital_write_command);
+    sCmd.addCommand("AR", analog_read_command);
+    sCmd.addCommand("AW", analog_write_command);
+    sCmd.addCommand("PM", pin_mode_command);
+    sCmd.addCommand("RF", rfcontrol_command);
+    sCmd.addCommand("PING", ping_command);
+    sCmd.addCommand("RESET", reset_command);
+    sCmd.setDefaultHandler(unrecognized);
   }
+
   if (Mode == "node")
   {
-    // read black and whitelist into global String
-    bwlistjson = ReadJson("/bwlist.json");
-    Serial.println(portMulti);
-    Udp.beginMulticast(WiFi.localIP(),  ipMulti, portMulti);
+    if (connectivity == "MQTT")
+    {
+      client.setCallback(callback);
+    }
+    if (connectivity == "UDP")
+    {
+      UdpMulti.beginMulticast(WiFi.localIP(),  ipMulti, portMulti);
+    }
+    bwlistjson = ReadJson("/bwlist.json");                      // read black and whitelist into global String
   }
 
   if (receiveAction >= 1)
   {
     pinMode(receiverPin.toInt(), INPUT);
     RFControl::startReceiving(receiverPin.toInt());
-    Serial.println("Receiving op pin " + String(receiverPin));
   }
+/*
+Serial.println("org");
+Serial.println(mqtt_server_org);
 
+Serial.println("connecting to");
+Serial.println(mqtt_server);
 
+Serial.println("port org:");
+Serial.println(mqtt_server_port_org);
+
+Serial.println("port:");
+Serial.println(mqtt_server_port);
+*/
+
+  esp_hostname = "[" + Mode + "]" + String(WiFi.hostname());
+  Serial.println("Attempting MQTT connection...");
+  // Connect to MQTT server
+  client.setServer(mqtt_server.c_str(), mqtt_server_port);
+  esp_hostname.toCharArray(mqtt_hostname, (esp_hostname.length() + 1));
+  if (client.connect(mqtt_hostname ) )
+  {
+    Serial.println("connected");
+    client.publish("debug", "This is node:");
+    client.publish("debug", outTopic);
+    client.subscribe("/pimaticrf");
+    mqtt_connected = 1;
+  }
+  else
+  {
+    Serial.print("failed, rc=");
+    Serial.println(client.state());
+    Serial.println("Retry in 1 minute");
+    mqtt_connected = 0;
+  }
+  Serial.println("ESPimaticRF ready ...");
 }
 
-void loop() {
-  // Check the webserver for updates
+void loop()
+{
   server.handleClient();
 
-  if (Mode == "node" && transmitAction == 1)
+
+  // Start loop
+  client.loop();
+
+  if (millis() - mqtt_lastInterval > mqtt_checkInterval)
   {
-    int packetSize = Udp.parsePacket();
-    if (packetSize)
-    {
-      // receive incoming UDP packets
-      //Serial.println("Received " + String(packetSize) + " bytes from " + String(Udp.remoteIP().toString().c_str()) + " , port " + String(Udp.remotePort()));
-      int len = Udp.read(incomingPacket, 355);
-      if (len > 0)
-      {
-        incomingPacket[len] = 0;
-      }
-      handle_udp(String(incomingPacket), packetSize);
-    }
+    mqtt_lastInterval = millis();
+    Check_mqtt();
   }
 
-  if (Mode == "homeduino")
+  if (Mode == "node" && transmitAction == 1 && connectivity == "UDP")
   {
-    // handle serial command
-    sCmd.readSerial();
-    // handle rf control receiving
-    rfcontrol_loop();
+    udpLoop();
   }
-
   if (Mode == "node" && receiveAction == 1)
   {
     if (RFControl::hasData())
@@ -353,118 +294,13 @@ void loop() {
       rfcontrolNode_loop();
     }
   }
-}
 
-void digital_read_command() {
-  char* arg = sCmd.next();
-  if (arg == NULL) {
-    argument_error();
-    return;
+  if (Mode == "homeduino")
+  {
+    sCmd.readSerial();
+    rfcontrol_loop();
   }
-  int pin = atoi(arg);
-  int val = digitalRead(pin);
-  Serial.print("ACK ");
-  Serial.write('0' + val);
-  Serial.print("\r\n");
 }
-
-void analog_read_command() {
-  char* arg = sCmd.next();
-  if (arg == NULL) {
-    argument_error();
-    return;
-  }
-  int pin = atoi(arg);
-  int val = analogRead(pin);
-  Serial.print("ACK ");
-  Serial.print(val);
-  Serial.print("\r\n");
-}
-
-void digital_write_command() {
-  char* arg = sCmd.next();
-  if (arg == NULL) {
-    argument_error();
-    return;
-  }
-  int pin = atoi(arg);
-  arg = sCmd.next();
-  if (arg == NULL) {
-    argument_error();
-    return;
-  }
-  int val = atoi(arg);
-  digitalWrite(pin, val);
-  Serial.print("ACK\r\n");
-}
-
-void analog_write_command() {
-  char* arg = sCmd.next();
-  if (arg == NULL) {
-    argument_error();
-    return;
-  }
-  int pin = atoi(arg);
-  arg = sCmd.next();
-  if (arg == NULL) {
-    argument_error();
-    return;
-  }
-  int val = atoi(arg);
-  analogWrite(pin, val);
-  Serial.print("ACK\r\n");
-}
-
-void pin_mode_command() {
-  char* arg = sCmd.next();
-  if (arg == NULL) {
-    argument_error();
-    return;
-  }
-  int pin = atoi(arg);
-  arg = sCmd.next();
-  if (arg == NULL) {
-    argument_error();
-    return;
-  }
-  // INPUT 0x0
-  // OUTPUT 0x1
-  int mode = atoi(arg);
-
-  //pinMode(pin, mode);
-  pinMode(5, mode);
-
-
-
-  Serial.print("ACK\r\n");
-}
-
-
-void ping_command() {
-  char *arg;
-  Serial.print("PING");
-  arg = sCmd.next();
-  if (arg != NULL) {
-    Serial.write(' ');
-    Serial.print(arg);
-  }
-  Serial.print("\r\n");
-}
-
-
-void reset_command() {
-  RFControl::stopReceiving();
-  Serial.print("ready\r\n");
-}
-
-void argument_error() {
-  Serial.print("ERR argument_error\r\n");
-}
-// This gets set as the default handler, and gets called when no other command matches.
-void unrecognized(const char *command) {
-  Serial.print("ERR unknown_command\r\n");
-}
-
 
 void CheckParseConfigJson()
 {
@@ -508,6 +344,14 @@ void CheckParseConfigJson()
     pimaticIP = ESPimaticRF["pimaticIP"].asString();
     pimaticPort = ESPimaticRF["pimaticPort"];
     BWmode = ESPimaticRF["BWmode"];
+    connectivity = ESPimaticRF["connectivity"].asString();
+    mqtt_server = ESPimaticRF["MQTTIP"].asString();
+    //mqtt_server = (const char*)ESPimaticRF["MQTTIP"];
+    mqtt_server_port = ESPimaticRF["MQTTPort"];
+
+//const char* mqtt_server = "192.168.2.121"; // MQTT server
+//unsigned int mqtt_server_port = 1883; // without the " " !!
+    
   }
 
 
@@ -639,16 +483,6 @@ void handle_filemanager_ajax()
 
 bool handleFileRead(String path)
 {
-  /*
-  // Collect SPIFFS info
-  FSInfo fsinfo;
-  SPIFFS.info(fsinfo);
-  int FSTotal = fsinfo.totalBytes;
-  int FSUsed = fsinfo.usedBytes;
-  Serial.println(String(FSTotal));
-  Serial.println(String(FSUsed));
-  */
-
   Serial.println("handleFileRead: " + path);
   if (path.endsWith("/")) path += "root.html";
 
@@ -673,7 +507,8 @@ bool handleFileRead(String path)
   return false;
 }
 
-String getContentType(String filename) {
+String getContentType(String filename)
+{
   if (server.hasArg("download")) return "application/octet-stream";
   else if (filename.endsWith(".htm")) return "text/html";
   else if (filename.endsWith(".html")) return "text/html";
@@ -788,18 +623,6 @@ void handle_wifim_html()
   server.send ( 200, "text/html", "<form method='POST' action='/wifi_ajax'><input type='hidden' name='form' value='wifi'><input type='text' name='ssid'><input type='password' name='password'><input type='submit' value='Submit'></form><br<b>Enter WiFi credentials</b>");
 }
 
-void handle_info()
-{
-  // Collect SPIFFS info
-  FSInfo fsinfo;
-  SPIFFS.info(fsinfo);
-  int FSTotal = fsinfo.totalBytes;
-  int FSUsed = fsinfo.usedBytes;
-  Serial.println(FSTotal);
-  Serial.println(FSUsed);
-  server.send(200, "text/html", FSTotal + "____" + FSUsed);
-}
-
 void printDirectory()
 {
   String jsnOutput = "[";
@@ -834,107 +657,21 @@ void handle_updatefwm_html()
   server.send ( 200, "text/html", "<form method='POST' action='/updatefw2' enctype='multipart/form-data'><input type='file' name='update'><input type='submit' value='Update'></form><br<b>For firmware only!!</b>");
 }
 
-void send_udp(String data)
-{
-  SendDone = 0;
-  SerialString = data;
-  char pls[data.length() + 1];
-  data.toCharArray(pls, data.length() + 1);
 
-  RFControl::stopReceiving();
-
-  for (int i = 0; i < UDPrepeat; i++)
-  {
-    Udp.beginPacketMulticast(ipMulti, portMulti, WiFi.localIP());
-    Udp.write(pls);
-    Udp.endPacket();
-    Serial.println("UDP Packet " + String(i) + " done");
-    delay(50);
-  }
-  RFControl::startReceiving(receiverPin.toInt());
-}
-
-void send_data(String data)
-{
-  String PostData = "action=rf&api=" + apikey + "&value=" + data;
-
-  const char* Hostchar = "192.168.2.198";
-  const char* Portchar = "80";
-  if (!client.connect(Hostchar, 80))
-  {
-    Serial.println("connection to node failed");
-    return;
-  }
-
-  client.println("POST /api HTTP/1.1");
-  client.println("Host: jsonplaceholder.typicode.com");
-  client.println("Cache-Control: no-cache");
-  client.println("Content-Type: application/x-www-form-urlencoded");
-  client.print("Content-Length: ");
-  client.println(PostData.length());
-  client.println();
-  client.println(PostData);
-
-  const char* status = "true";
-
-  //  delay(500);
-
-  while (client.available())
-  {
-    String line = client.readStringUntil('\r');
-  }
-}
 
 void handle_api()
 {
   // Get vars for all commands
   String action = server.arg("action");
   String value = server.arg("value");
-  String apiurl = server.arg("api");
 
   int ValidCall = 0;
-
-  if (action == "rf" && Mode == "node")
-  {
-    ValidCall = 1;
-    if (apiurl == apikey)
-    {
-      Serial.println("Receiving RF data: " + String(value));
-      server.send ( 200, "text/html", "OK");
-
-      DynamicJsonBuffer BufferSetup;
-      JsonObject& rf = BufferSetup.parseObject(value);
-      JsonObject& bckets = rf["buckets"];
-
-      // read pulse lengths
-      unsigned long buckets[8];
-      for (unsigned int i = 0; i < 8; i++)
-      {
-        buckets[i] = strtoul(bckets[String(i)], NULL, 10);
-      }
-
-      int repeats = rf["repeats"];
-      //char pulse = rf["pulse"];
-
-      String pulse = rf["pulse"].asString();
-
-
-      char pls[pulse.length() + 1];
-      pulse.toCharArray(pls, pulse.length() + 1);
-
-      RFControl::sendByCompressedTimings(4, buckets, pls, 7);
-    }
-    else
-    {
-      Serial.println("Wrong API key: " + apiurl);
-      server.send ( 200, "text/html", "ERROR: Invalide API key");
-    }
-  }
 
   if (action == "GET")
   {
     if (value == "lastreceived")
     {
+      ValidCall = 1;
       server.send(200, "text/html", LastReceived);
     }
   }
@@ -962,7 +699,7 @@ void handle_ping()
 void handle_bwlist_ajax()
 {
   String action = server.arg("action");
-  
+
   if (action == "RemoveBWDevice")
   {
     String protocol = server.arg("protocol");
@@ -1055,7 +792,10 @@ void handle_config_ajax()
     String bwmode = server.arg("bwmode");
     String ssid = server.arg("ssid");
     String password = server.arg("password");
-
+    String connectivity = server.arg("connectivity");
+    String mqttserver = server.arg("MQTTIP");
+    String mqttport = server.arg("MQTTPort");
+    
     String systmjsn = ReadJson("/config.json");
     DynamicJsonBuffer BufferWifi;
     JsonObject& systm = BufferWifi.parseObject(const_cast<char*>(systmjsn.c_str()));
@@ -1088,6 +828,9 @@ void handle_config_ajax()
     ESPimaticRF["pimaticPort"] = pimaticPort;
     ESPimaticRF["apikey"] = apikey;
     ESPimaticRF["BWmode"] = bwmode;
+    ESPimaticRF["connectivity"] = connectivity;
+    ESPimaticRF["MQTTIP"] = mqttserver;
+    ESPimaticRF["MQTTPort"] = mqttport;
 
     server.send ( 200, "text/html", "OK");
 
@@ -1099,94 +842,164 @@ void handle_config_ajax()
   }
 }
 
-void handle_udp(String incomingPacket, int packetSize)
+
+void handle_fileupload()
 {
-  if (String(incomingPacket).substring(0, 8) != PrevHash )
+  HTTPUpload& upload = server.upload();
+  if (upload.status == UPLOAD_FILE_START)
   {
-    String strippedJson = String(incomingPacket).substring(8, packetSize);
-    PrevHash = String(incomingPacket).substring(0, 8);
-    DynamicJsonBuffer BufferSetup;
-    JsonObject& rf = BufferSetup.parseObject(strippedJson);
-
-    if (rf.success())
+    noInterrupts();
+    fileName = upload.filename;
+    Serial.setDebugOutput(true);
+    //fileName = upload.filename;
+    Serial.println("Upload Name: " + fileName);
+    String path;
+    if (fileName.indexOf(".css") >= 0)
     {
-      JsonObject& bckets = rf["buckets"];
-
-      // read pulse lengths
-      unsigned long buckets[8];
-      for (unsigned int i = 0; i < 8; i++)
-      {
-        buckets[i] = strtoul(bckets[String(i)], NULL, 10);
-      }
-
-      int repeats = rf["repeats"];
-      String pulse = rf["pulse"].asString();
-      String protocol = rf["protocol"].asString();
-      String unit = rf["unit"].asString();
-      String id = rf["id"].asString();
-
-      Serial.println("Receive message from homeduino, protocol:" + protocol + " , unit:" + unit + " , id:" + id);
-
-      if (BWmode == 1)
-      {
-        // BWmode 1 = Allow everything except blacklist
-        String BWCopy = bwlistjson;
-        DynamicJsonBuffer bwbuffer;
-        JsonObject& bw = bwbuffer.parseObject(const_cast<char*>(BWCopy.c_str()));
-
-        if ( String(bw[protocol][id][unit].asString()) != "blacklisted")
-        {
-          char pls[pulse.length() + 1];
-          pulse.toCharArray(pls, pulse.length() + 1);
-          RFControl::sendByCompressedTimings(transmitterPin.toInt(), buckets, pls, repeats);
-          LastReceived = String(incomingPacket).substring(8, packetSize);
-          //LastReceived = incomingPacket;
-        }
-        else
-        {
-          Serial.println("This protocol/ID/Unit is blacklisted, do nothing");
-        }
-      }
-
-      if (BWmode == 2)
-      {
-        // BWmode 2 = Allow nothing except whitelist
-        String BWCopy = bwlistjson;
-        DynamicJsonBuffer bwbuffer;
-        JsonObject& bw = bwbuffer.parseObject(const_cast<char*>(BWCopy.c_str()));
-
-        if ( String(bw[protocol][id][unit].asString()) == "whitelisted")
-        {
-          char pls[pulse.length() + 1];
-          pulse.toCharArray(pls, pulse.length() + 1);
-          RFControl::sendByCompressedTimings(transmitterPin.toInt(), buckets, pls, repeats);
-        }
-        else
-        {
-          Serial.println("This protocol/ID/Unit is not in the whitelist, do nothing");
-          LastReceived = String(incomingPacket).substring(8, packetSize);
-          //LastReceived = incomingPacket;
-        }
-      }
-
-      if (BWmode == 0)
-      {
-        // BWmode 0 = Allow everything
-        char pls[pulse.length() + 1];
-        pulse.toCharArray(pls, pulse.length() + 1);
-        RFControl::sendByCompressedTimings(transmitterPin.toInt(), buckets, pls, repeats);
-        LastReceived = String(incomingPacket).substring(8, packetSize);
-        //LastReceived = incomingPacket;
-      }
+      path = "/css/" + fileName;
+    }
+    else if (fileName.indexOf(".js") >= 0 && !fileName.endsWith(".json"))
+    {
+      path = "/js/" + fileName;
+    }
+    else if (fileName.indexOf(".otf") >= 0 || fileName.indexOf(".eot") >= 0 || fileName.indexOf(".svg") >= 0 || fileName.indexOf(".ttf") >= 0 || fileName.indexOf(".woff") >= 0 || fileName.indexOf(".woff2") >= 0)
+    {
+      path = "/fonts/" + fileName;
     }
     else
     {
-      Serial.println("problem with incoming json?");
+      path = "/" + fileName;
+    }
+    UploadFile = SPIFFS.open(path, "w");
+    // already existing file will be overwritten!
+  }
+  else if (upload.status == UPLOAD_FILE_WRITE)
+  {
+    if (UploadFile)
+      UploadFile.write(upload.buf, upload.currentSize);
+    Serial.println(fileName + " size: " + upload.currentSize);
+  }
+  else if (upload.status == UPLOAD_FILE_END)
+  {
+    Serial.println("Upload Size: ");
+    Serial.println(String(upload.totalSize));  // need 2 commands to work!
+    if (UploadFile)
+      UploadFile.close();
+  }
+  yield();
+}
+
+void returnOK()
+{
+  server.send(200, "text/plain", "");
+}
+
+void returnOKReboot()
+{
+  server.send(200, "text/plain", "");
+  ESP.restart();
+}
+
+
+void handle_fwupload()
+{
+  HTTPUpload& upload = server.upload();
+  if (upload.status == UPLOAD_FILE_START)
+  {
+    fileName = upload.filename;
+    Serial.setDebugOutput(true);
+    Serial.printf("Update: %s\n", upload.filename.c_str());
+    uint32_t maxSketchSpace = (ESP.getFreeSketchSpace() - 0x1000) & 0xFFFFF000;
+    if (!Update.begin(maxSketchSpace)) { //start with max available size
+      Update.printError(Serial);
+    }
+  }
+  else if (upload.status == UPLOAD_FILE_WRITE)
+  {
+    if (Update.write(upload.buf, upload.currentSize) != upload.currentSize)
+    {
+      Update.printError(Serial);
+    }
+  }
+  else if (upload.status == UPLOAD_FILE_END)
+  {
+    if (Update.end(true)) //true to set the size to the current progress
+    {
+      Serial.printf("Update Success: %u\nRebooting...\n", upload.totalSize);
+    }
+    else
+    {
+      Update.printError(Serial);
+    }
+    Serial.setDebugOutput(false);
+
+  }
+  yield();
+}
+
+void handle_root_ajax()
+{
+  // Collect everything for uptime
+  long milliseconds   = millis();
+  long seconds    = (long) ((milliseconds / (1000)) % 60);
+  long minutes    = (long) ((milliseconds / (60000)) % 60);
+  long hours      = (long) ((milliseconds / (3600000)) % 24);
+  long days       = (long) (milliseconds / 86400000);
+  String Uptime     = days + String (" d ") + hours + String(" h ") + minutes + String(" min ") + seconds + String(" sec");
+
+  // Collect free memory
+  int FreeHeap = ESP.getFreeHeap();
+
+  // Collect SPIFFS info
+  FSInfo fsinfo;
+  SPIFFS.info(fsinfo);
+  int FSTotal = fsinfo.totalBytes;
+  int FSUsed = fsinfo.usedBytes;
+
+  DeviceName = "[" + Mode + "]" + String(WiFi.hostname());
+  server.send(200, "text/html", String(FreeHeap) + sep + Uptime + sep + FSTotal + sep + FSUsed + sep + DeviceName + sep + Mode);
+}
+
+void Check_mqtt()
+{
+  //Serial.println("Checking mqtt connection ...");
+  /*
+    char naampje[1];
+    if (Mode == "node")
+    {
+    String hostnaampje = "[node]" + WiFi.hostname();
+    hostnaampje.toCharArray(naampje, (hostnaampje.length() + 1));
+    }
+
+    if (Mode == "homeduino")
+    {
+    String hostnaampje = "[homeduino]" + WiFi.hostname();
+    hostnaampje.toCharArray(naampje, (hostnaampje.length() + 1));
+    }
+  */
+
+  if (!client.connected() )
+  {
+    Serial.println("Connection with mqtt lost, reconnect");
+    if (client.connect(mqtt_hostname ) )
+    {
+      Serial.println("connected");
+      //client.publish("debug", "This is node:");
+      //client.publish("debug", outTopic);
+      client.subscribe("/pimaticrf");
+      mqtt_connected = 1;
+    }
+    else
+    {
+      Serial.print("failed, rc=");
+      Serial.println(client.state());
+      Serial.println("Retry in 1 minute");
+      mqtt_connected = 0;
     }
   }
   else
   {
-    Serial.println("Ignore duplicate message");
+    //Serial.println("Still connected. OK");
+    mqtt_connected = 1;
   }
 }
-

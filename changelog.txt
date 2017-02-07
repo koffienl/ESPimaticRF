@@ -1,0 +1,23 @@
+0.0.4
+Changed bwlist.html with message black/whitelsiting is not available in homeduino mode
+Remodelling of code
+Rremoved several debug messages
+Removed the dots on serial while connecting to wifi if module is in homeduino mode
+Added info on root page
+Added waiting for local IP (needed for bad wifi reception)
+Added MQTT support
+
+0.0.3
+Changed protocol parsing
+Changed hashing methode for UDP packets
+Info on root page
+Removed API key from config when in homeduino mode
+Added option to delete device from black/whitelist
+Fix in protocols.json
+
+0.0.2
+Added black- and whitelisting
+Minor codefixes
+
+0.0.1
+Initial version

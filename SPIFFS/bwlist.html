@@ -44,49 +44,67 @@ $( document ).ready(function() {
 		$.ajax
 		({
 			type: "GET",
-			url: "/bwlist.json",
+			url: "/config.json",
 			data: "",
 			cache: false,
 			success: function(html)
 			{
 				json = JSON.parse(html);
-				$("#bwlist").html("[Protocol] , [ID] , [Unit]<br><br>");
-
-				$.each(json, function(key, data)
+				if (json["settings"]["ESPimaticRF"]["mode"] == "homeduino")
 				{
-					protocol = key;
-					protocolData = data
-					$.each(protocolData, function(key, data)
-					{
-						id = key
-						idData = data
-						$.each(idData, function(key, data)
+					$("#bwlist").append("Black/whitelisting is not available in homeduino mode");
+				}
+				else
+				{
+					$.ajax
+					({
+						type: "GET",
+						url: "/bwlist.json",
+						data: "",
+						cache: false,
+						success: function(html)
 						{
-							if (typeof key != 'undefined')
+							json = JSON.parse(html);
+							$("#bwlist").html("[Protocol] , [ID] , [Unit]<br><br>");
+
+							$.each(json, function(key, data)
 							{
-								unit = key
-								if (data == "blacklisted")
+								protocol = key;
+								protocolData = data
+								$.each(protocolData, function(key, data)
 								{
-									glyph = "glyphicon glyphicon-ban-circle"
-								}
-								if (data == "whitelisted")
-								{
-									glyph = "glyphicon glyphicon-ok-circle"
-								}
-								$("#bwlist").append("<span id='" + protocol + "_" + id + "_" + unit + "'>[" + protocol + "] , [" + id + "] , [" + unit + ']</span><span class="' + glyph + ' pull-right"></span><br>')
-							}
+									id = key
+									idData = data
+									$.each(idData, function(key, data)
+									{
+										if (typeof key != 'undefined')
+										{
+											unit = key
+											if (data == "blacklisted")
+											{
+												glyph = "glyphicon glyphicon-ban-circle"
+											}
+											if (data == "whitelisted")
+											{
+												glyph = "glyphicon glyphicon-ok-circle"
+											}
+											$("#bwlist").append("<span id='" + protocol + "_" + id + "_" + unit + "'>[" + protocol + "] , [" + id + "] , [" + unit + ']</span><span class="' + glyph + ' pull-right"></span><br>')
+										}
+										});
+								});
 							});
-					});
-				});
-				$("#bw_block").show();
-				$("#system_block").show();
-				$("#system_block_loading").hide();			
-				$("#bwlist_block_saving").hide();			
-				$("#header").show();
-				$("#system").show();
-				$("#loading").hide();
+						}
+					});	
+				}
+							$("#bw_block").show();
+							$("#system_block").show();
+							$("#system_block_loading").hide();			
+							$("#bwlist_block_saving").hide();			
+							$("#header").show();
+							$("#system").show();
+							$("#loading").hide();
 			}
-		});	
+		});
 		$.ajax
 		({
 			type: "GET",

@@ -51,7 +51,18 @@ $( document ).ready(function() {
 				json = JSON.parse(html);
 				var mode = json["settings"]["ESPimaticRF"]["mode"]
 				$("#mode option[value='" + mode + "']").attr("selected", "true");
-
+				var connectivity = json["settings"]["ESPimaticRF"]["connectivity"]
+				if (typeof connectivity == 'undefined')
+				{
+					$("#udprepeat_div").hide();
+					$("#MQTTIP_div").hide();
+					$("#MQTTPort_div").hide();
+				}
+				else
+				{
+					$("#connectivity option[value='" + connectivity + "']").attr("selected", "true");
+				}
+				
 				var udprepeat = json["settings"]["ESPimaticRF"]["UDPrepeat"]
 				if (udprepeat < 1)
 				{
@@ -65,14 +76,24 @@ $( document ).ready(function() {
 				
 				if (mode == "node")
 				{
-					FillActionSelect("node");
+					FillActionSelectMode("node");
 				}
 
 				if (mode == "homeduino")
 				{
-					FillActionSelect("homeduino");
+					FillActionSelectMode("homeduino");
 				}
 				
+				if (connectivity == "UDP")
+				{
+					FillActionSelectConnectivity("UDP");
+				}
+
+				if (connectivity == "MQTT")
+				{
+					FillActionSelectConnectivity("MQTT");
+				}
+
 				
 				$("[name=receive_action]").val(json["settings"]["ESPimaticRF"]["receiveAction"]);
 				$("[name=transmit_action]").val(json["settings"]["ESPimaticRF"]["transmitAction"]);				
@@ -83,7 +104,8 @@ $( document ).ready(function() {
 				$("#apikey").val(json["settings"]["ESPimaticRF"]["apikey"]);
 				$("#ssid").val(json["settings"]["wifi"]["ssid"]);
 				$("#password").val(json["settings"]["wifi"]["password"]);
-				
+				$("#MQTTIP").val(json["settings"]["ESPimaticRF"]["MQTTIP"]);
+				$("#MQTTPort").val(json["settings"]["ESPimaticRF"]["MQTTPort"]);
 				
 				$("#header").show();
 				$("#system").show();
@@ -91,13 +113,28 @@ $( document ).ready(function() {
 			}
 		});	
 	};
+
+	function FillActionSelectConnectivity(connectivity) {
+		if (connectivity == "MQTT")
+		{
+			$("#udprepeat_div").hide();
+			$("#MQTTIP_div").show();
+			$("#MQTTPort_div").show();
+		}
+		if (connectivity == "UDP")
+		{
+			$("#udprepeat_div").show();
+			$("#MQTTIP_div").hide();
+			$("#MQTTPort_div").hide();
+		}
+	};
 	
-	function FillActionSelect(mode) {
+	function FillActionSelectMode(mode) {
 		if (mode == "node")
 		{
 			$("#pimaticIP_div").show();
 			$("#pimaticPort_div").show();
-			$("#udprepeat_div").hide();
+			//$("#udprepeat_div").hide();
 			$("#bwlist").show();
 			$("#apikey_div").show();
 			
@@ -116,7 +153,7 @@ $( document ).ready(function() {
 		{
 			$("#pimaticIP_div").hide();
 			$("#pimaticPort_div").hide();
-			$("#udprepeat_div").show();
+			//$("#udprepeat_div").show();
 			$("#bwlist").hide();
 			$("#apikey_div").hide();
 		
@@ -131,30 +168,42 @@ $( document ).ready(function() {
 			$('#transmit_action').append('<option value="1">Transmit to all nodes</option>');
 			$('#transmit_action').append('<option value="2">Transmit with local RF</option>');
 			$('#transmit_action').append('<option value="3">Both</option>');
-		}
-
-	
-	
+		}	
 	};
 
 	$('#mode').on('change', function() {
 		var sel = this.value;
 		if (sel == "homeduino")
 		{
-			FillActionSelect("homeduino");
+			FillActionSelectMode("homeduino");
 			$("#pimaticIP_div").hide();
 			$("#pimaticPort_div").hide();
-			$("#udprepeat_div").show();
+			//$("#udprepeat_div").show();
 		}
 		if (sel == "node")
 		{
-			FillActionSelect("node");
+			FillActionSelectMode("node");
 			$("#pimaticIP_div").show();
 			$("#pimaticPort_div").show();
-			$("#udprepeat_div").hide();
+			//$("#udprepeat_div").hide();
 		}
 	});
 
+	$('#connectivity').on('change', function() {
+		var sel = this.value;
+		//alert(sel)
+		FillActionSelectConnectivity(sel);
+		/*
+		if (sel == "MQTT")
+		{
+			FillActionSelectMode("homeduino");
+		}
+		if (sel == "UDP")
+		{
+			FillActionSelectMode("node");
+		}
+		*/
+	});
 	
 	// Function to submit (save) form data to ESP. Depending on the settings the ESP might reboot, then we have to trigger the CheckReboot function
 	$("#system_form").submit(function(event) {
@@ -258,6 +307,17 @@ $( document ).ready(function() {
 
                         </div>
 						</div>
+                     <div class="form-group">
+                        <div class="input-group">
+                           <span class="input-group-addon">Connectivity </span>
+                           <select class="form-control" name="connectivity" id="connectivity">
+						   <option disabled selected> -- Select Connectivity --</option>
+						   <option value="UDP">UDP</option>
+						   <option value="MQTT">MQTT</option>
+                           </select>
+
+                        </div>
+						</div>
 	                    <div class="form-group">
 							<div class="input-group">
 							   <span class="input-group-addon">Receiver pin </span>
@@ -306,7 +366,15 @@ $( document ).ready(function() {
 
                         </div>
 						</div>	
-						
+
+                     <div class='form-group' id="MQTTIP_div">
+                        <div class='input-group'><span class='input-group-addon' id='basic-addon1'>MQTT broker address </span><input type='text' id='MQTTIP' name='MQTTIP' value='' class='form-control' aria-describedby='basic-addon1'></div>
+                     </div>
+
+                     <div class='form-group' id="MQTTPort_div">
+                        <div class='input-group'><span class='input-group-addon' id='basic-addon1'>MQTT broker port  </span><input type='text' id='MQTTPort' name='MQTTPort' value='' class='form-control' aria-describedby='basic-addon1'></div>
+                     </div>
+					 
                      <div class='form-group' id="pimaticIP_div">
                         <div class='input-group'><span class='input-group-addon' id='basic-addon1'>Pimatic address </span><input type='text' id='pimaticIP' name='pimaticIP' value='' class='form-control' aria-describedby='basic-addon1'></div>
                      </div>
