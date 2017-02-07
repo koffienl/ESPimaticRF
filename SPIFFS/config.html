@@ -50,7 +50,19 @@ $( document ).ready(function() {
 			{
 				json = JSON.parse(html);
 				var mode = json["settings"]["ESPimaticRF"]["mode"]
-				$("#mode option[value='" + mode + "']").attr("selected", "true");
+				
+				if (typeof mode == 'undefined')
+				{
+					$("#pimaticIP_div").hide();
+					$("#pimaticPort_div").hide();
+					$("#apikey_div").hide();
+					$("#bwlist").hide();
+				}
+				else
+				{
+					$("#mode option[value='" + mode + "']").attr("selected", "true");
+				}
+				
 				var connectivity = json["settings"]["ESPimaticRF"]["connectivity"]
 				if (typeof connectivity == 'undefined')
 				{

@@ -232,39 +232,29 @@ void setup() {
     pinMode(receiverPin.toInt(), INPUT);
     RFControl::startReceiving(receiverPin.toInt());
   }
-/*
-Serial.println("org");
-Serial.println(mqtt_server_org);
-
-Serial.println("connecting to");
-Serial.println(mqtt_server);
-
-Serial.println("port org:");
-Serial.println(mqtt_server_port_org);
-
-Serial.println("port:");
-Serial.println(mqtt_server_port);
-*/
 
   esp_hostname = "[" + Mode + "]" + String(WiFi.hostname());
-  Serial.println("Attempting MQTT connection...");
-  // Connect to MQTT server
-  client.setServer(mqtt_server.c_str(), mqtt_server_port);
-  esp_hostname.toCharArray(mqtt_hostname, (esp_hostname.length() + 1));
-  if (client.connect(mqtt_hostname ) )
+  if (connectivity == "MQTT")
   {
-    Serial.println("connected");
-    client.publish("debug", "This is node:");
-    client.publish("debug", outTopic);
-    client.subscribe("/pimaticrf");
-    mqtt_connected = 1;
-  }
-  else
-  {
-    Serial.print("failed, rc=");
-    Serial.println(client.state());
-    Serial.println("Retry in 1 minute");
-    mqtt_connected = 0;
+    Serial.println("Attempting MQTT connection...");
+    // Connect to MQTT server
+    client.setServer(mqtt_server.c_str(), mqtt_server_port);
+    esp_hostname.toCharArray(mqtt_hostname, (esp_hostname.length() + 1));
+    if (client.connect(mqtt_hostname ) )
+    {
+      Serial.println("connected");
+      client.publish("debug", "This is node:");
+      client.publish("debug", outTopic);
+      client.subscribe("/pimaticrf");
+      mqtt_connected = 1;
+    }
+    else
+    {
+      Serial.print("failed, rc=");
+      Serial.println(client.state());
+      Serial.println("Retry in 1 minute");
+      mqtt_connected = 0;
+    }
   }
   Serial.println("ESPimaticRF ready ...");
 }
@@ -349,9 +339,9 @@ void CheckParseConfigJson()
     //mqtt_server = (const char*)ESPimaticRF["MQTTIP"];
     mqtt_server_port = ESPimaticRF["MQTTPort"];
 
-//const char* mqtt_server = "192.168.2.121"; // MQTT server
-//unsigned int mqtt_server_port = 1883; // without the " " !!
-    
+    //const char* mqtt_server = "192.168.2.121"; // MQTT server
+    //unsigned int mqtt_server_port = 1883; // without the " " !!
+
   }
 
 
@@ -795,7 +785,7 @@ void handle_config_ajax()
     String connectivity = server.arg("connectivity");
     String mqttserver = server.arg("MQTTIP");
     String mqttport = server.arg("MQTTPort");
-    
+
     String systmjsn = ReadJson("/config.json");
     DynamicJsonBuffer BufferWifi;
     JsonObject& systm = BufferWifi.parseObject(const_cast<char*>(systmjsn.c_str()));

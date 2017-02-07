@@ -1,3 +1,7 @@
+0.0.5
+Fixed connection to MQTT broker, only needed whem MQTT is selected
+Hide some HTML fields on config.html when mode is not selected
+
 0.0.4
 Changed bwlist.html with message black/whitelsiting is not available in homeduino mode
 Remodelling of code
