@@ -1,53 +1,10 @@
-# ESPimaticRF
-Highly beta, use only when you got instructions!
+See the Wiki for help on installing.
+This version supports both MQTT and UDP for communication between the ESP’s.
 
-Use Arduino IDE 1.6.5
+CAUTION : This version needs the librarie pubsubclient (included in the download). If you allready have it installed or don’t want to use the included librarie be aware you MUST edit pubsubclient\src\PubSubClient.h and set MQTT_MAX_PACKET_SIZE to 512 (line 26).
+The included librarie allready has this change.
 
-Use Arduino ESP8266 2.3.0
+I’m quite new to MQTT but so far everything looks fine to me. Only tested with mosquitto on debian.
+Ofcourse all the ESP’s in the ESPimaticRF chain should use the same meganism : either MQTT or UDP you can’t mix the protocols.
 
-Compile & upload sketch to ESP with enough SPIFFS
-
-After first wait finish format SPIFFS
-
-Connecto to Access Point ESPimaticRF (password espimaticrf)
-
-Go to http://192.168.4.1
-
-Fill in local wifi credentials and save
-
-Wait for restart
-
-Grab assigned DHCP IP address from Serial Monitor
-
-Go to http://esp_ip
-
-Upload all the files that are in 'SPIFFS' folder
-
-Reboot ESP
-
-Go to http://esp_ip , choose config from menu and enter all the options
-
-MUST edit to work:
-
-* mode (can be 'homeduino' for attached to Raspberry Pi or 'node' when standalone)
-* receiverPin (can be left nu none for homdeuino mode, will follow pin number in pimatic)
-* transmitterPin (can be left nu none for homdeuino mode, will follow pin number in pimatic)
-* pimaticIP
-* pimaticPort
-* apikey (also, make sure you have the apikey entered in the pimatic config for homeduino plugin)
-* receiveAction
-* transmitAction
-
-receiveAction in 'node' mode:
-* receiveAction = 0 [don't do anything with protocol received by local RF]
-* receiveAction = 1 [send protocol received by local RF to pimatic]
-
-transmitAction in 'node' mode:
-* transmitAction = 0 [don't do anything with protocol received by UDP]
-* transmitAction = 1 [transmit protocol received by UDP to local RF]
-
-
-Currently send/receive is only available on the node (beta, you know).
-
-
-For more information : https://forum.pimatic.org/topic/2438/announcement-espimaticrf-coming-soon
+The ESP will connect to the MQTT broker on startup. Every 1 minute the connection is check and retried / reestablished when the connection is dropped.
