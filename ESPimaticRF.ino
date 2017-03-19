@@ -16,15 +16,10 @@ long mqtt_lastInterval  = 0;
 int mqtt_connected;
 String esp_hostname;
 char mqtt_hostname[1];
-//const char* mqtt_server; // MQTT server
 String mqtt_server;
-//const char* mqtt_server_org = "192.168.2.121"; // MQTT server
-unsigned int mqtt_server_port ; // without the " " !!
-//unsigned int mqtt_server_port_org = 1883;
-const char* clientName = "node"; // Has to be unique on the network
-const char* outTopic = "/pimaticrf"; // Topic for publishing messages
+unsigned int mqtt_server_port;
+const char* outTopic = "/pimaticrf";                        // Topic for MQTT messages
 String connectivity;
-
 
 // External includes
 #include <SerialCommand.h>
@@ -37,13 +32,14 @@ String connectivity;
 #include <WiFiUdp.h>
 #include <PubSubClient.h>                                   // IMPORTANT: make sure to edit PubSubClient.h and set MQTT_MAX_PACKET_SIZE 512
 
+#include "Base64.h"
+
 SerialCommand sCmd;                                         // Setup serial commands
 ESP8266WebServer server(80);                                // Setup webserver on port 80
-WiFiClient ESPclient;                                       // start wifi client
+WiFiClient ESPclient;                                       // Setup wifi client
 File UploadFile;                                            // File for SPIFFS
-String fileName;                                            // Setup MQTT client
-PubSubClient client(ESPclient);
-
+String fileName;
+PubSubClient client(ESPclient);                             // Setup MQTT client
 
 // Local includes
 #include "ESPimaticRF_homeduino.h"
@@ -134,24 +130,21 @@ void setup() {
     else
     {
       delay(500);
-      //Serial.println("");
       Serial.print("Connected to: ");
       Serial.println(ssidStored);
-      //Serial.print("IP address: ");
-      //Serial.println(WiFi.localIP().toString());
+
+      int ii = 0;
+      Serial.println("Waiting for local IP");
+      while (WiFi.localIP().toString() == "0.0.0.0" && ii < 15)
+      {
+        delay(1000);
+        Serial.print(".");
+        ++i;
+      }
+      Serial.println(WiFi.localIP().toString());
     }
   }
 
-
-  int i = 0;
-  Serial.println("Waiting for local IP");
-  while (WiFi.localIP().toString() == "0.0.0.0" && i < 15 && Mode == "homeduino")
-  {
-    delay(1000);
-    Serial.print(".");
-    ++i;
-  }
-  Serial.println(WiFi.localIP().toString());
 
   // If no root page && AP mode, set root to simple upload page
   if ( !SPIFFS.exists("/root.html") && !SPIFFS.exists("/root.html.gz") && WMode != "AP")
@@ -164,7 +157,7 @@ void setup() {
   {
     server.on("/", handle_wifim_html);
   }
-  server.on ( "/format", handleFormat );                      // Format Flash ROM - dangerous! Remove if you dont't want this option!
+  server.on ("/format", handleFormat );                      // Format Flash ROM - dangerous! Remove if you dont't want this option!
   server.on("/fupload", handle_fupload_html);
   server.on("/wifi_ajax", handle_wifi_ajax);
   server.on("/bwlist_ajax", handle_bwlist_ajax);
@@ -195,12 +188,8 @@ void setup() {
 
   if (Mode == "homeduino")
   {
-    //esp_hostname = "[homeduino]" + String(WiFi.hostname());
-
     // read protocols into global String
     protocolsjson = ReadJson("/protocols.json");
-    //localUdpPort = 4210;  // local port to listen on
-    //Udp.begin(localUdpPort);
 
     // Setup callbacks for SerialCommand commands
     sCmd.addCommand("DR", digital_read_command);
@@ -245,7 +234,7 @@ void setup() {
       Serial.println("connected");
       client.publish("debug", "This is node:");
       client.publish("debug", outTopic);
-      client.subscribe("/pimaticrf");
+      client.subscribe("/pellet");
       mqtt_connected = 1;
     }
     else
@@ -261,13 +250,18 @@ void setup() {
 
 void loop()
 {
+  if (receiveAction == 1)
+  {
+    if (RFControl::hasData())
+    {
+      rfcontrolNode_loop();
+    }
+  }
+  
   server.handleClient();
-
-
-  // Start loop
   client.loop();
 
-  if (millis() - mqtt_lastInterval > mqtt_checkInterval)
+  if (millis() - mqtt_lastInterval > mqtt_checkInterval && connectivity == "MQTT")
   {
     mqtt_lastInterval = millis();
     Check_mqtt();
@@ -277,13 +271,7 @@ void loop()
   {
     udpLoop();
   }
-  if (Mode == "node" && receiveAction == 1)
-  {
-    if (RFControl::hasData())
-    {
-      rfcontrolNode_loop();
-    }
-  }
+
 
   if (Mode == "homeduino")
   {
@@ -336,22 +324,14 @@ void CheckParseConfigJson()
     BWmode = ESPimaticRF["BWmode"];
     connectivity = ESPimaticRF["connectivity"].asString();
     mqtt_server = ESPimaticRF["MQTTIP"].asString();
-    //mqtt_server = (const char*)ESPimaticRF["MQTTIP"];
     mqtt_server_port = ESPimaticRF["MQTTPort"];
-
-    //const char* mqtt_server = "192.168.2.121"; // MQTT server
-    //unsigned int mqtt_server_port = 1883; // without the " " !!
-
   }
-
-
 
   int len = systm.measurePrettyLength() + 1;
   char ch[len];
   size_t n = systm.prettyPrintTo(ch, sizeof(ch));
   String tt(ch);
   WriteJson(tt, "/config.json");
-
 }
 
 String ReadJson(String filename)
@@ -393,7 +373,6 @@ String ReadJson(String filename)
     return json_string;
   }
 }
-
 
 void WriteJson(String json, String file)
 {
@@ -549,6 +528,7 @@ String formatBytes(size_t bytes) {
   }
 }
 
+
 void handle_wifi_ajax()
 {
   String form = server.arg("form");
@@ -646,8 +626,6 @@ void handle_updatefwm_html()
 {
   server.send ( 200, "text/html", "<form method='POST' action='/updatefw2' enctype='multipart/form-data'><input type='file' name='update'><input type='submit' value='Update'></form><br<b>For firmware only!!</b>");
 }
-
-
 
 void handle_api()
 {
@@ -935,7 +913,7 @@ void handle_root_ajax()
   long minutes    = (long) ((milliseconds / (60000)) % 60);
   long hours      = (long) ((milliseconds / (3600000)) % 24);
   long days       = (long) (milliseconds / 86400000);
-  String Uptime     = days + String (" d ") + hours + String(" h ") + minutes + String(" min ") + seconds + String(" sec");
+  String Uptime   = days + String (" d ") + hours + String(" h ") + minutes + String(" min ") + seconds + String(" sec");
 
   // Collect free memory
   int FreeHeap = ESP.getFreeHeap();
@@ -947,27 +925,11 @@ void handle_root_ajax()
   int FSUsed = fsinfo.usedBytes;
 
   DeviceName = "[" + Mode + "]" + String(WiFi.hostname());
-  server.send(200, "text/html", String(FreeHeap) + sep + Uptime + sep + FSTotal + sep + FSUsed + sep + DeviceName + sep + Mode);
+  server.send(200, "text/html", String(FreeHeap) + sep + Uptime + sep + FSTotal + sep + FSUsed + sep + DeviceName + sep + Mode + sep + mqtt_connected);
 }
 
 void Check_mqtt()
 {
-  //Serial.println("Checking mqtt connection ...");
-  /*
-    char naampje[1];
-    if (Mode == "node")
-    {
-    String hostnaampje = "[node]" + WiFi.hostname();
-    hostnaampje.toCharArray(naampje, (hostnaampje.length() + 1));
-    }
-
-    if (Mode == "homeduino")
-    {
-    String hostnaampje = "[homeduino]" + WiFi.hostname();
-    hostnaampje.toCharArray(naampje, (hostnaampje.length() + 1));
-    }
-  */
-
   if (!client.connected() )
   {
     Serial.println("Connection with mqtt lost, reconnect");
@@ -989,7 +951,57 @@ void Check_mqtt()
   }
   else
   {
-    //Serial.println("Still connected. OK");
     mqtt_connected = 1;
   }
+}
+
+
+String get_data(String var)
+{
+  String rcv;
+
+  String yourdata;
+  base64 encoder;
+  String auth = Username;
+  auth += ":";
+  auth += Password;
+
+  if (!client.connect("192.168.2.121", 80))
+  {
+    Serial.println("connection failed");
+    return rcv;
+  }
+
+  //yourdata = "{\"type\": \"value\", \"valueOrExpression\": \"" + data + "\"}";
+
+  client.print("GET /api/variables/");
+  client.print(var);
+  client.print(" HTTP/1.1\r\n");
+  client.print("Authorization: Basic ");
+  client.print(encoder.encode(auth));
+  client.print("\r\n");
+  client.print("Host: 192.192.2.1\r\n");
+  client.print("Content-Type:application/json\r\n");
+  client.print("\r\n\r\n");
+  const char* status = "true";
+
+  delay(500);
+
+  // Read all the lines of the reply from server and print them to Serial
+  while (client.available()) {
+    Serial.print(line);
+    String line = client.readStringUntil('\r');
+    if (line.indexOf("\"value\": ") > 0)
+    {
+      rcv += line;
+    }
+  }
+
+
+  //'   "value": 17'
+
+  rcv.replace("\n", "|");
+  rcv = getValue(rcv, '|', 6);
+  rcv = rcv.substring(13, (rcv.length() - 1) );
+  return rcv;
 }

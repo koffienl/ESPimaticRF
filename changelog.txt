@@ -1,5 +1,12 @@
+0.0.6
+Added MQTT status on root page of webserver
+Added autorefresh of root page of webserver
+Fixed LastReceived for bwlist when in MQTT
+Minor code cleanup
+Added code to send received RF commands directly to Pimatic over serial
+
 0.0.5
-Fixed connection to MQTT broker, only needed whem MQTT is selected
+Fixed connection to MQTT broker, only needed when MQTT is selected
 Hide some HTML fields on config.html when mode is not selected
 
 0.0.4

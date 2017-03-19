@@ -18,10 +18,6 @@ void callback(char* topic, byte* payload, unsigned int length)
   for (int i = 0; i < length; i++) {
     incomingPacket = incomingPacket + (char)payload[i] ;
   }
-
-  //String strippedJson = String(incomingPacket).substring(8, incoming.length());
-  //Serial.println("Stripped: " + strippedJson);
-  //PrevHash = String(incomingPacket).substring(0, 8);
   DynamicJsonBuffer BufferSetup;
   JsonObject& rf = BufferSetup.parseObject(incomingPacket);
 
@@ -56,8 +52,7 @@ void callback(char* topic, byte* payload, unsigned int length)
         char pls[pulse.length() + 1];
         pulse.toCharArray(pls, pulse.length() + 1);
         RFControl::sendByCompressedTimings(transmitterPin.toInt(), buckets, pls, repeats);
-        //LastReceived = String(incomingPacket).substring(8, incoming.length());
-        //LastReceived = incomingPacket;
+        LastReceived = incomingPacket;
       }
       else
       {
@@ -81,8 +76,7 @@ void callback(char* topic, byte* payload, unsigned int length)
       else
       {
         Serial.println("This protocol/ID/Unit is not in the whitelist, do nothing");
-        //LastReceived = String(incomingPacket).substring(8, incoming.length());
-        //LastReceived = incomingPacket;
+        LastReceived = incomingPacket;
       }
     }
 
@@ -92,8 +86,7 @@ void callback(char* topic, byte* payload, unsigned int length)
       char pls[pulse.length() + 1];
       pulse.toCharArray(pls, pulse.length() + 1);
       RFControl::sendByCompressedTimings(transmitterPin.toInt(), buckets, pls, repeats);
-      //LastReceived = String(incomingPacket).substring(8, incoming.length());
-      //LastReceived = incomingPacket;
+      LastReceived = incomingPacket;
     }
   }
   else
@@ -226,11 +219,21 @@ void rfcontrolNode_loop()
   unsigned int pulse_length_divider = RFControl::getPulseLengthDivider();
   RFControl::compressTimings(buckets, timings, timings_size);
 
+  if (Mode == "homeduino")
+  {
+    Serial.print("RF receive ");
+  }
+
   int BucketCount = 1;
 
   String bucketsStr = "[";
   for (unsigned int i = 0; i < 8; i++) {
     unsigned long bucket = buckets[i] * pulse_length_divider;
+    if (Mode == "homeduino")
+    {
+      Serial.print(bucket);
+      Serial.write(' ');
+    }
     if (bucket == 0) {
       break;
     }
@@ -247,7 +250,16 @@ void rfcontrolNode_loop()
 
   String pulsesStr;
   for (unsigned int i = 0; i < timings_size; i++) {
+    if (Mode == "homeduino")
+    {
+      Serial.write('0' + timings[i]);
+    }
     pulsesStr += timings[i];
+  }
+
+  if (Mode == "homeduino")
+  {
+    Serial.print("\r\n");
   }
   RFControl::continueReceiving();
 

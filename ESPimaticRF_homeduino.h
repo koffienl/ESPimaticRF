@@ -372,13 +372,10 @@ void rfcontrol_command_send()
     root["unit"] = "unknown";
   }
 
-  //int hash = random(10000000, 99999999);
   int len = root.measureLength() + 1;
   char ch[len];
   size_t n = root.printTo(ch, sizeof(ch));
   String tt(ch);
-
-  //tt = String(hash).substring(0, 8) + tt;
 
   if (transmitAction == 1 || transmitAction == 3)
   {

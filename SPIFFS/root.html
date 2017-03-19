@@ -26,6 +26,7 @@ window.onload = function() {
 
 // Jquery functions
 $( document ).ready(function() {
+setInterval(RefreshData, 5000);
 	
 	// Make submenu clickable
 	$(".dropdown-submenu>a").unbind("click").click(function(e){
@@ -38,34 +39,6 @@ $( document ).ready(function() {
 	RefreshData();
 	
 	function RefreshData(){
-	/*
-		$.ajax
-		({
-			type: "GET",
-			url: "/config.json",
-			data: "",
-			cache: false,
-			success: function(html)
-			{
-				json = JSON.parse(html);
-				if (typeof json["settings"]["ESPimaticRF"]["mode"] != 'undefined')
-				{
-					$("#root").html("ESPimatircRF is in '" + json["settings"]["ESPimaticRF"]["mode"] + "' mode");
-					$("#mode").html(json["settings"]["ESPimaticRF"]["mode"]);
-					$("#header").show();
-					$("#system").show();
-					$("#loading").hide();
-				}
-				else
-				{
-					$("#root").html("ESPimatircRF is not properly configured yet");
-					$("#header").show();
-					$("#system").show();
-					$("#loading").hide();
-				}
-			}
-		});
-		*/
 		$.ajax
 		({
 			type: "GET",
@@ -77,7 +50,22 @@ $( document ).ready(function() {
 			splitted = html.split("____");
 			$("#mode").html(splitted[5]);
 			$("#uptime").html(splitted[1]);
-			$("#devicename").html(splitted[4]);			
+			$("#devicename").html(splitted[4]);
+			var mqtt_connected = splitted[6];
+
+			if (mqtt_connected != "")
+			{
+				if (mqtt_connected == "1")
+				{
+					$("#mqtt").html("Connected");
+					$("#mqtt_div").show();
+				}
+				if (mqtt_connected == "0")
+				{
+					$("#mqtt").html("not connected");
+					$("#mqtt_div").show();
+				}
+			}
 		
 			var FlashInUse = splitted[3];
 			var FlashTotal = splitted[2];
@@ -165,6 +153,9 @@ $( document ).ready(function() {
          </div>
          <div class="panel panel-default">
             <div class="panel-body"><span class="glyphicon glyphicon-tag"></span> Device name<span class="pull-right"><span id="devicename"></span></span></div>
+         </div>
+         <div class="panel panel-default" id="mqtt_div" style="display: none;">
+            <div class="panel-body"><span class="glyphicon glyphicon-cloud"></span> MQTT Status<span class="pull-right"><span id="mqtt"></span></span></div>
          </div>
          <div class="panel panel-default">
             <div class="panel-body"><span class="glyphicon glyphicon-time"></span> Uptime<span class="pull-right"><span id="uptime"></span></span></div>
