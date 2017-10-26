@@ -234,7 +234,7 @@ void setup() {
       Serial.println("connected");
       client.publish("debug", "This is node:");
       client.publish("debug", outTopic);
-      client.subscribe("/pellet");
+      client.subscribe("/pimaticrf");
       mqtt_connected = 1;
     }
     else
